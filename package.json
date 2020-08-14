@@ -1,0 +1,44 @@
+{
+  "name": "js13k-404",
+  "version": "0.1.0",
+  "description": "js13k 2020 entry",
+  "main": "index.js",
+  "scripts": {
+    "test": "gulp test",
+    "gulp": "gulp"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jayther/js13k-2020-4040.git"
+  },
+  "keywords": [
+    "game",
+    "js13k",
+    "js13kgames",
+    "html5"
+  ],
+  "author": "J'Brian",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jayther/js13k-2020-404/issues"
+  },
+  "homepage": "https://github.com/jayther/js13k-2020-404#readme",
+  "devDependencies": {
+    "del": "^3.0.0",
+    "express": "^4.15.4",
+    "fs-extra": "^4.0.1",
+    "gulp": "^4.0.2",
+    "gulp-concat": "^2.6.1",
+    "gulp-htmlmin": "^3.0.0",
+    "gulp-micro": "^1.1.0",
+    "gulp-mustache": "^3.0.0",
+    "gulp-rename": "^1.2.2",
+    "gulp-sass": "^3.1.0",
+    "gulp-size": "^2.1.0",
+    "gulp-uglify": "^3.0.0",
+    "gulp-zip": "^4.0.0"
+  },
+  "dependencies": {
+    "eslint": "^7.6.0"
+  }
+}
