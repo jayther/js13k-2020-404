@@ -4,27 +4,39 @@ function Player(scene, settings) {
   var s = extend({
     world: null
   }, settings || {});
-  this.aabb = new AABB(0, 0, 5, 5);
+  this.aabb = new AABB(0, 0, 10, 10);
   this.vel = {
     x: 0,
     y: 0
   };
   this.world = s.world;
   this.currentRoom = null;
-  var rect = this.rect = new DisplayRect({
-    x: -5,
-    y: -5,
-    w: 10,
-    h: 10,
-    color: 'blue'
+  var img = new DisplayImg({
+    img: Resources.loadedImgs.robot,
+    w: 19,
+    h: 20,
+    anchorX: 10,
+    anchorY: 10
   });
-  this.addChild(rect);
+  this.addChild(img);
+  this.img = img;
+  // var rect = this.rect = new DisplayRect({
+  //   x: -5,
+  //   y: -5,
+  //   w: 10,
+  //   h: 10,
+  //   color: 'blue'
+  // });
+  // this.addChild(rect);
 }
 Player.prototype = extendPrototype(DisplayContainer.prototype, {
   updateAABB: function () {
     this.aabb.set(this.x, this.y);
   },
   step: function (dts) {
+    if (this.vel.x || this.vel.y) {
+      this.img.angle = JMath.angleFromVec(this.vel);
+    }
     this.x += this.vel.x * dts;
     this.y += this.vel.y * dts;
     this.updateAABB();

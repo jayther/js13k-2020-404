@@ -9,5 +9,11 @@ Random = {
   },
   pick: function (array) {
     return array[Random.rangeInt(0, array.length)];
+  },
+  pickAndRemove: function (array) {
+    var i = Random.rangeInt(0, array.length);
+    var item = array[i];
+    array.splice(i, 1);
+    return item;
   }
 };

@@ -1,6 +1,6 @@
 {
   "game": {
-    "title": "Lost",
+    "title": "Mail Delivery",
     "width": 640,
     "height": 360
   },
@@ -9,7 +9,8 @@
     "files": [
       { "from": "src/js/b.js", "to": "." },
       { "from": "src/style/c.css", "to": "." },
-      { "from": "src/views/index.html", "to": "." }
+      { "from": "src/views/index.html", "to": "." },
+      { "from": "src/imgs/robot_3Dblue.png", "to": "." }
     ]
   },
   "templates": {
@@ -44,6 +45,7 @@
   "concat": {
     "js": {
       "files": [
+        "src/js/src/Resources.js",
         "src/js/src/utils/Polyfills.js",
         "src/js/src/utils/DOM.js",
         "src/js/src/input/KB.js",
@@ -57,6 +59,8 @@
         "src/js/src/graphics/DisplayItem.js",
         "src/js/src/graphics/DisplayContainer.js",
         "src/js/src/graphics/DisplayRect.js",
+        "src/js/src/graphics/DisplayImg.js",
+        "src/js/src/graphics/DisplayText.js",
         "src/js/src/graphics/CachedContainer.js",
         
         "src/js/src/play/World.js",
@@ -64,6 +68,7 @@
         
         "src/js/src/scenes/Scene.js",
         "src/js/src/scenes/PlayScene.js",
+        "src/js/src/scenes/PreloadScene.js",
         
         "src/js/src/main.js"
       ],
@@ -160,7 +165,10 @@
               "alpha",
               "marginLeft",
               "marginTop",
-              "position"
+              "position",
+              "complete",
+              "onload",
+              "src"
             ]
           }
         }

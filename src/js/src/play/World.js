@@ -14,6 +14,8 @@ function World() {
   this.gridHeight = 0;
   this.rooms = [];
   this.hallways = [];
+  this.startingRoom = null;
+  this.lobbies = [];
   
   this.bg = new CachedContainer();
   this.addChild(this.bg);
@@ -35,6 +37,19 @@ World.relativePos = [
   { x: -1, y: -1 },
   { x: 1, y: -1 }
 ];
+World.roomTypes = {
+  mailRoom: 1,
+  lobby: 2,
+  officeBullpen: 3,
+  officePrivate: 4,
+  officeOpen: 5
+};
+World.sides = {
+  right: 1,
+  bottom: 2,
+  left: 4,
+  top: 8
+};
 
 World.prototype = extendPrototype(DisplayContainer.prototype, {
   generate: function (width, height) {
@@ -59,7 +74,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       color: '#656565'
     }));
     
-    var i, j, x, y;
+    var i, j, x, y, x2, y2;
     
     this.gridWidth = w;
     this.gridHeight = h;
@@ -270,6 +285,8 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       rectCheck = extend({}, chunk);
       var neighbors = [];
       // check for left and right of room
+      rectCheck.top += 1;
+      rectCheck.bottom -= 1;
       rectCheck.left -= 2;
       rectCheck.right += 2;
       for (j = 0; j < chunkPool.length; j += 1) {
@@ -279,10 +296,10 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         }
       }
       // check for top and bottom of room
-      rectCheck.left = chunk.left;
-      rectCheck.right = chunk.right;
-      rectCheck.top -= 2;
-      rectCheck.bottom += 2;
+      rectCheck.left = chunk.left + 1;
+      rectCheck.right = chunk.right - 1;
+      rectCheck.top = chunk.top - 2;
+      rectCheck.bottom = chunk.bottom + 2;
       for (j = 0; j < chunkPool.length; j += 1) {
         chunkA = chunkPool[j];
         if (neighbors.indexOf(chunkA) < 0 && JMath.intersectRectRect(rectCheck, chunkA)) {
@@ -290,6 +307,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         }
       }
       if (neighbors.length > 0) { // has a connected neighbor
+        var doorWallFlags = 0;
         chunkA = Random.pick(neighbors);
         // reset rectCheck
         rectCheck.left = chunk.left;
@@ -305,8 +323,11 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
           x = chunkA.right;
           y = Random.rangeInt(
             Math.max(chunk.top, chunkA.top),
-            Math.min(chunk.bottom, chunkA.bottom)
+            Math.min(chunk.bottom, chunkA.bottom) - 1
           );
+          x2 = x;
+          y2 = y + 1;
+          doorWallFlags = World.sides.left;
         }
         // top
         if (!found) {
@@ -316,9 +337,12 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
             found = true;
             x = Random.rangeInt(
               Math.max(chunk.left, chunkA.left),
-              Math.min(chunk.right, chunkA.right)
+              Math.min(chunk.right, chunkA.right) - 1
             );
             y = chunkA.bottom;
+            x2 = x + 1;
+            y2 = y;
+            doorWallFlags = World.sides.top;
           }
         }
         // right
@@ -330,21 +354,52 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
             x = chunkA.left - 1;
             y = Random.rangeInt(
               Math.max(chunk.top, chunkA.top),
-              Math.min(chunk.bottom, chunkA.bottom)
+              Math.min(chunk.bottom, chunkA.bottom) - 1
             );
+            x2 = x;
+            y2 = y + 1;
+            doorWallFlags = World.sides.right;
           }
         }
         // bottom
         if (!found) {
           x = Random.rangeInt(
             Math.max(chunk.left, chunkA.left),
-            Math.min(chunk.right, chunkA.right)
+            Math.min(chunk.right, chunkA.right) - 1
           );
           y = chunkA.top - 1;
+          x2 = x + 1;
+          y2 = y;
+          doorWallFlags = World.sides.bottom;
         }
         this.setPos(x, y, World.cellTypes.door);
+        this.setPos(x2, y2, World.cellTypes.door);
         chunk.connected = true;
         this.rooms.push(chunk);
+        // which walls have doors
+        if (!chunk.doorWallFlags) {
+          chunk.doorWallFlags = 0;
+        }
+        if (!chunkA.doorWallFlags) {
+          chunkA.doorWallFlags = 0;
+        }
+        chunk.doorWallFlags |= doorWallFlags;
+        var opposing = doorWallFlags << 2;
+        if (opposing > 8) {
+          opposing >>= 4; // wrap around if more than 4 digits
+        }
+        chunkA.doorWallFlags |= opposing;
+        // keep track of where doors are
+        // if (!chunk.doors) {
+        //   chunk.doors = [];
+        // }
+        // if (!chunkA.doors) {
+        //   chunkA.doors = [];
+        // }
+        // chunk.doors.push(this.getCell(x, y));
+        // chunk.doors.push(this.getCell(x2, y2));
+        // chunkA.doors.push(this.getCell(x, y));
+        // chunkA.doors.push(this.getCell(x2, y2));
       } else {
         // first pass: this room is an island room
         // second pass: this room is surrounded by other island rooms, add back to stack
@@ -383,6 +438,166 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       hallwayFog.addChild(fog);
       chunk.fog = hallwayFog;
     }
+  },
+  generateRoomTypes: function () {
+    // mail room (starting point)
+    var roomPool = this.rooms.slice();
+    var room = Random.pickAndRemove(roomPool);
+    room.type = World.roomTypes.mailRoom;
+    room.furniture = [];
+    this.generateRoomLayout(room);
+    this.startingRoom = room;
+
+    // other rooms
+    var roomTypePool, w, h, a;
+    while (roomPool.length > 0) {
+      room = Random.pickAndRemove(roomPool);
+      w = room.right - room.left;
+      h = room.bottom - room.top;
+      a = w * h;
+      roomTypePool = [];
+      // min/max areas for each room type
+      if (a > 200) {
+        roomTypePool.push(World.roomTypes.officeBullpen);
+      }
+      if (a >= 90) {
+        roomTypePool.push(World.roomTypes.officeOpen);
+      }
+      if (a < 90) {
+        roomTypePool.push(World.roomTypes.officePrivate);
+      }
+      if (a >= 90 && (this.lobbies.length === 0 || Math.random() < 0.1)) { // lesser chance for lobby
+        roomTypePool.push(World.roomTypes.lobby);
+      }
+      room.type = Random.pick(roomTypePool);
+      room.furniture = [];
+      if (room.type === World.roomTypes.lobby) {
+        this.lobbies.push(room);
+      }
+      this.generateRoomLayout(room);
+    }
+  },
+  generateRoomLayout: function (room) {
+    // TODO
+    // using pixel units
+    var i, j;
+    var bounds = {
+      left: room.left * this.cellSize,
+      top: room.top * this.cellSize,
+      right: room.right * this.cellSize,
+      bottom: room.bottom * this.cellSize
+    };
+    var offset = 1.5; // grid units from wall
+
+    // offset from wall with doors
+    if (room.doorWallFlags & World.sides.left) {
+      bounds.left += this.cellSize * offset;
+    }
+    if (room.doorWallFlags & World.sides.top) {
+      bounds.top += this.cellSize * offset;
+    }
+    if (room.doorWallFlags & World.sides.right) {
+      bounds.right -= this.cellSize * offset;
+    }
+    if (room.doorWallFlags & World.sides.bottom) {
+      bounds.bottom -= this.cellSize * offset;
+    }
+    var boundsWidth = bounds.right - bounds.left,
+      boundsHeight = bounds.bottom - bounds.top;
+    
+    var desks = [];
+
+    // Open offices
+    if (room.type === World.roomTypes.officeOpen) {
+      var deskWidth = 40, deskDepth = 20, deskSpacing = 40, deskInterval = deskDepth + deskSpacing;
+      var deskX, deskY;
+      var maxDesks, offset = 0, facing = Random.rangeInt(0, 2);
+      var desksPerGroup = Random.rangeInt(1, 3);
+      var currentDeskInGroup = Random.rangeInt(0, desksPerGroup);
+      if (boundsWidth > boundsHeight) {
+        // desks are vertical
+        maxDesks = Math.floor(boundsWidth / deskInterval);
+        offset = Math.random() * (boundsWidth - maxDesks * deskInterval);
+        deskY = bounds.top;
+        while (deskY + deskWidth < bounds.bottom) {
+          for (i = 0; i < maxDesks; i += 1) {
+            deskX = bounds.left + i * deskInterval + facing * deskDepth + offset;
+            desks.push({
+              left: deskX,
+              top: deskY,
+              right: deskX + deskDepth,
+              bottom: deskY + deskWidth
+            });
+          }
+          currentDeskInGroup += 1;
+          if (currentDeskInGroup >= desksPerGroup) {
+            currentDeskInGroup = 0;
+            deskY += deskSpacing + deskWidth;
+          } else {
+            deskY += deskWidth;
+          }
+        }
+      } else {
+        // desks are horizontal
+        maxDesks = Math.floor(boundsHeight / deskInterval);
+        offset = Math.random() * (boundsHeight - maxDesks * deskInterval);
+        deskX = bounds.left;
+        while (deskX + deskWidth < bounds.right) {
+          for (i = 0; i < maxDesks; i += 1) {
+            deskY = bounds.top + i * deskInterval + facing * deskDepth + offset;
+            desks.push({
+              left: deskX,
+              top: deskY,
+              right: deskX + deskWidth,
+              bottom: deskY + deskDepth
+            });
+          }
+          currentDeskInGroup += 1;
+          if (currentDeskInGroup >= desksPerGroup) {
+            currentDeskInGroup = 0;
+            deskX += deskSpacing + deskWidth;
+          } else {
+            deskX += deskWidth;
+          }
+        }
+      }
+    }
+
+    var boundRect = new DisplayRect({
+      x: bounds.left,
+      y: bounds.top,
+      w: boundsWidth,
+      h: boundsHeight,
+      color: '#007700'
+    });
+    this.addChild(boundRect);
+
+    // place desks
+    desks.forEach(function (desk) {
+      var rect = new DisplayRect({
+        x: desk.left,
+        y: desk.top,
+        w: desk.right - desk.left,
+        h: desk.bottom - desk.top,
+        color: '#990000'
+      });
+      this.addChild(rect);
+    }, this);
+
+    var x = (room.left + room.right) / 2 * this.cellSize,
+      y = (room.top + room.bottom) / 2 * this.cellSize,
+      labelMap = ['Unknown', 'Mailroom', 'Lobby', 'Bullpen', 'Private', 'Open'],
+      label = labelMap[room.type];
+
+    var displayText = new DisplayText({
+      text: label,
+      x: x,
+      y: y,
+      align: 'center',
+      baseline: 'middle',
+      font: '36px Arial'
+    });
+    this.addChild(displayText);
   },
   createCell: function (x, y, type, room) {
     var color = null,

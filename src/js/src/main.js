@@ -7,8 +7,9 @@ function Main(){
   this.root.appendChild(canvas);
   this.canvas = canvas;
   this.context = canvas.getContext('2d');
+  this.context.font = '16px Arial'; // global font
   this.animManager = new AnimManager();
-  this.scene = new PlayScene(this);
+  this.scene = new PreloadScene(this);
   this.time = 0;
   
   this.resize = this.resize.bind(this);
@@ -16,6 +17,7 @@ function Main(){
   this.onWindowResize();
   
   this.step(0);
+  this.scene.create();
 }
 Main.prototype = {
   onWindowResize: function () {

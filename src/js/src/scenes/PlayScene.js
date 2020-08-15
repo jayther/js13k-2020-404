@@ -21,8 +21,11 @@ function PlayScene() {
   this.world = new World();
   this.addChild(this.world);
   this.world.generate(this.gridWidth, this.gridHeight);
+  this.world.generateRoomTypes();
+  this.world.scaleX = 2;
+  this.world.scaleY = 2;
   
-  var seeWholeWorld = false;
+  var seeWholeWorld = true;
   if (seeWholeWorld) {
     var w = this.world.gridWidth * this.world.cellSize;
     var h = this.world.gridHeight * this.world.cellSize;
@@ -44,7 +47,7 @@ function PlayScene() {
   });
   this.world.addChild(this.player);
   
-  var room = Random.pick(this.world.rooms);
+  var room = this.world.startingRoom;
   this.player.x = (room.left + room.right) / 2 * this.world.cellSize;
   this.player.y = (room.top + room.bottom) / 2 * this.world.cellSize;
   this.player.updateAABB();
@@ -79,8 +82,8 @@ function PlayScene() {
   this.addSteppable(this.player.step.bind(this.player));
   if (!seeWholeWorld) {
     this.addSteppable(function (dts) {
-      this.world.x = Math.floor(SETTINGS.width / 2 - player.x);
-      this.world.y = Math.floor(SETTINGS.height / 2 - player.y);
+      this.world.x = Math.floor(SETTINGS.width / 2 - player.x * this.world.scaleX);
+      this.world.y = Math.floor(SETTINGS.height / 2 - player.y * this.world.scaleY);
     }.bind(this));
   }
 }

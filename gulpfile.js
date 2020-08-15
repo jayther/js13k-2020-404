@@ -16,6 +16,7 @@ const path = require('path'),
   del = require('del');
 
 const appBuildPath = './app.build.json';
+const localPort = 5000;
 
 let appBuild = null;
 
@@ -72,7 +73,7 @@ function renderHtmlDev() {
   return renderTemplate(appBuild.templates.indexHtmlDev, appBuild);
 }
 
-function renderHtml() {
+function renderHtmlProd() {
   return renderTemplate(appBuild.templates.indexHtml, appBuild);
 }
 
@@ -101,14 +102,15 @@ function localServer(cb) {
   
   app.use('/c.css', express.static('src/style/c.css'));
   app.use('/bundle-wrap.js', express.static('src/js/bundle-wrap.js'));
+  app.use('/robot_3Dblue.png', express.static('src/imgs/robot_3Dblue.png'));
   
   app.get('/', function (req, resp) {
     resp.set('Content-Type', 'text/html');
     resp.send(fs.readFileSync('src/views/dev.html'));
   });
   
-  app.listen(8080, () => {
-    console.log('Listening to 8080...');
+  app.listen(localPort, () => {
+    console.log(`Listening to ${localPort}...`);
   });
 }
 
@@ -117,14 +119,15 @@ function localServerProd(cb) {
   
   app.use('/c.css', express.static('build/c.css'));
   app.use('/b.js', express.static('build/b.js'));
+  app.use('/robot_3Dblue.png', express.static('build/robot_3Dblue.png'));
   
   app.get('/', function (req, resp) {
     resp.set('Content-Type', 'text/html');
     resp.send(fs.readFileSync('build/index.html'));
   });
   
-  app.listen(8080, () => {
-    console.log('Listening to 8080...');
+  app.listen(localPort, () => {
+    console.log(`Listening to ${localPort}...`);
   });
 }
 
@@ -141,7 +144,7 @@ exports.wrapJs = wrapJs;
 exports.minifyJs = minifyJs;
 exports.sassCss = sassCss;
 exports.renderHtmlDev = renderHtmlDev;
-exports.renderHtml = renderHtml;
+exports.renderHtmlProd = renderHtmlProd;
 exports.minifyHtml = minifyHtml;
 exports.staticExport = staticExport;
 exports.localServer = localServer;
@@ -149,17 +152,19 @@ exports.localServerProd = localServerProd;
 exports.exportDist = exportDist;
 
 exports.buildJsDev = series(concatJs, wrapJs);
-exports.buildJs = series(concatJs, wrapJs, minifyJs);
+exports.buildJsProd = series(concatJs, wrapJs, minifyJs);
+exports.buildJs = exports.buildJsDev;
 
 exports.buildHtmlDev = renderHtmlDev;
-exports.buildHtml = series(renderHtml, minifyHtml);
+exports.buildHtml = series(renderHtmlProd, minifyHtml);
 
 exports.buildCss = sassCss;
 
-exports.exportBuild = series(parallel(exports.buildJs, exports.buildHtml, exports.buildCss), staticExport);
+exports.exportBuild = series(parallel(exports.buildJsProd, exports.buildHtml, exports.buildCss), staticExport);
 
 exports.buildDev = parallel(exports.buildJsDev, exports.buildHtmlDev, exports.buildCss);
-exports.build = exports.exportBuild;
+exports.buildProd = exports.exportBuild;
+exports.build = exports.buildDev;
 
 exports.dev = series(exports.buildDev, localServer);
 exports.prod = series(exports.build, localServerProd);

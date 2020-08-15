@@ -6,7 +6,9 @@ function DisplayItem(options) {
     scaleY: 1,
     angle: 0,
     visible: true,
-    alpha: 1
+    alpha: 1,
+    anchorX: 0,
+    anchorY: 0
   }, options || {});
   this.x = opts.x;
   this.y = opts.y;
@@ -15,6 +17,8 @@ function DisplayItem(options) {
   this.angle = opts.angle;
   this.visible = opts.visible;
   this.alpha = opts.alpha;
+  this.anchorX = opts.anchorX;
+  this.anchorY = opts.anchorY;
 }
 DisplayItem.prototype = {
   _render: function (context) {
@@ -28,6 +32,9 @@ DisplayItem.prototype = {
       }
       if (this.angle) {
         context.rotate(this.angle);
+      }
+      if (this.anchorX || this.anchorY) {
+        context.translate(-this.anchorX / this.scaleX, -this.anchorY / this.scaleY);
       }
       if (this.alpha < 1) {
         context.globalAlpha *= this.alpha;
