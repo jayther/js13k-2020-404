@@ -8,7 +8,7 @@ AABB.fromRect = function (rect) {
   return new AABB(
     (rect.left + rect.right) / 2,
     (rect.top + rect.bottom) / 2,
-    (rect.right - rect.right) / 2,
+    (rect.right - rect.left) / 2,
     (rect.bottom - rect.top) / 2
   );
 };

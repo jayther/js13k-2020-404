@@ -141,7 +141,7 @@ AABB.fromRect = function (rect) {
   return new AABB(
     (rect.left + rect.right) / 2,
     (rect.top + rect.bottom) / 2,
-    (rect.right - rect.right) / 2,
+    (rect.right - rect.left) / 2,
     (rect.bottom - rect.top) / 2
   );
 };
@@ -921,7 +921,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
   generateRoomLayout: function (room) {
     // TODO
     // using pixel units
-    var i, j;
+    var i;
     var bounds = {
       left: room.left * this.cellSize,
       top: room.top * this.cellSize,
@@ -951,18 +951,19 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     // Open offices
     if (room.type === World.roomTypes.officeOpen) {
       var deskWidth = 40, deskDepth = 20, deskSpacing = 40, deskInterval = deskDepth + deskSpacing;
+      var deskGroupSpacing = 5;
       var deskX, deskY;
-      var maxDesks, offset = 0, facing = Random.rangeInt(0, 2);
+      var maxDesks, deskFrontOffset, deskSideOffset, facing = Random.rangeInt(0, 2);
       var desksPerGroup = Random.rangeInt(1, 3);
       var currentDeskInGroup = Random.rangeInt(0, desksPerGroup);
       if (boundsWidth > boundsHeight) {
         // desks are vertical
         maxDesks = Math.floor(boundsWidth / deskInterval);
-        offset = Math.random() * (boundsWidth - maxDesks * deskInterval);
+        deskFrontOffset = Math.random() * (boundsWidth - maxDesks * deskInterval);
         deskY = bounds.top;
         while (deskY + deskWidth < bounds.bottom) {
           for (i = 0; i < maxDesks; i += 1) {
-            deskX = bounds.left + i * deskInterval + facing * deskDepth + offset;
+            deskX = bounds.left + i * deskInterval + facing * deskDepth + deskFrontOffset;
             desks.push({
               left: deskX,
               top: deskY,
@@ -975,17 +976,22 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
             currentDeskInGroup = 0;
             deskY += deskSpacing + deskWidth;
           } else {
-            deskY += deskWidth;
+            deskY += deskWidth + deskGroupSpacing;
           }
         }
+        deskSideOffset = Math.random() * (boundsHeight - (desks[desks.length - 1].bottom - desks[0].top));
+        desks.forEach(function (desk) {
+          desk.top += deskSideOffset;
+          desk.bottom += deskSideOffset;
+        });
       } else {
         // desks are horizontal
         maxDesks = Math.floor(boundsHeight / deskInterval);
-        offset = Math.random() * (boundsHeight - maxDesks * deskInterval);
+        deskFrontOffset = Math.random() * (boundsHeight - maxDesks * deskInterval);
         deskX = bounds.left;
         while (deskX + deskWidth < bounds.right) {
           for (i = 0; i < maxDesks; i += 1) {
-            deskY = bounds.top + i * deskInterval + facing * deskDepth + offset;
+            deskY = bounds.top + i * deskInterval + facing * deskDepth + deskFrontOffset;
             desks.push({
               left: deskX,
               top: deskY,
@@ -998,9 +1004,14 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
             currentDeskInGroup = 0;
             deskX += deskSpacing + deskWidth;
           } else {
-            deskX += deskWidth;
+            deskX += deskWidth + deskGroupSpacing;
           }
         }
+        deskSideOffset = Math.random() * (boundsWidth - (desks[desks.length - 1].right - desks[0].left));
+        desks.forEach(function (desk) {
+          desk.left += deskSideOffset;
+          desk.right += deskSideOffset;
+        });
       }
     }
 
@@ -1023,6 +1034,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         color: '#990000'
       });
       this.addChild(rect);
+      room.furniture.push(AABB.fromRect(desk));
     }, this);
 
     var x = (room.left + room.right) / 2 * this.cellSize,
@@ -1136,6 +1148,7 @@ function Player(scene, settings) {
     world: null
   }, settings || {});
   this.aabb = new AABB(0, 0, 10, 10);
+  this.prevAabb = new AABB(0, 0, 10, 10);
   this.vel = {
     x: 0,
     y: 0
@@ -1168,6 +1181,7 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
     if (this.vel.x || this.vel.y) {
       this.img.angle = JMath.angleFromVec(this.vel);
     }
+    this.prevAabb.set(this.aabb.x, this.aabb.y);
     this.x += this.vel.x * dts;
     this.y += this.vel.y * dts;
     this.updateAABB();
@@ -1178,27 +1192,56 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
     for (i = 0; i < cells.length; i += 1) {
       cell = cells[i];
       if (!cell.passable && cell.aabb && cell.aabb.intersectsWith(this.aabb)) {
-        relX = this.aabb.x - cell.aabb.x;
-        relY = this.aabb.y - cell.aabb.y;
+        relX = this.prevAabb.x - cell.aabb.x;
+        relY = this.prevAabb.y - cell.aabb.y;
         if (Math.abs(relX) > Math.abs(relY)) {
           if (relX > 0) {
-            this.x = cell.aabb.getRight() + this.aabb.hw;
+            this.x = cell.aabb.getRight() + this.prevAabb.hw;
           } else {
-            this.x = cell.aabb.getLeft() - this.aabb.hw;
+            this.x = cell.aabb.getLeft() - this.prevAabb.hw;
           }
         } else {
           if (relY > 0) {
-            this.y = cell.aabb.getBottom() + this.aabb.hh;
+            this.y = cell.aabb.getBottom() + this.prevAabb.hh;
           } else {
-            this.y = cell.aabb.getTop() - this.aabb.hh;
+            this.y = cell.aabb.getTop() - this.prevAabb.hh;
           }
         }
+        this.prevAabb.set(this.aabb.x, this.aabb.y);
         this.updateAABB();
+      }
+    }
+
+    cell = this.world.getCellFromPos(this.x, this.y);
+
+    // collide with furniture
+    if (cell && cell.room && cell.room.furniture) {
+      var furniture = cell.room.furniture, aabb;
+      for (i = 0; i < furniture.length; i += 1) {
+        aabb = furniture[i];
+        if (aabb.intersectsWith(this.aabb)) {
+          relX = this.prevAabb.x - aabb.x;
+          relY = this.prevAabb.y - aabb.y;
+          if (Math.abs(relX) > Math.abs(relY)) {
+            if (relX > 0) {
+              this.x = aabb.getRight() + this.prevAabb.hw;
+            } else {
+              this.x = aabb.getLeft() - this.prevAabb.hw;
+            }
+          } else {
+            if (relY > 0) {
+              this.y = aabb.getBottom() + this.prevAabb.hh;
+            } else {
+              this.y = aabb.getTop() - this.prevAabb.hh;
+            }
+          }
+          this.prevAabb.set(this.aabb.x, this.aabb.y);
+          this.updateAABB();
+        }
       }
     }
     
     // fog reveal/refog
-    cell = this.world.getCellFromPos(this.x, this.y);
     if (cell && cell.room && this.currentRoom !== cell.room) {
       var previousRoom = this.currentRoom;
       this.currentRoom = cell.room;
@@ -1277,7 +1320,7 @@ function PlayScene() {
   this.world.scaleX = 2;
   this.world.scaleY = 2;
   
-  var seeWholeWorld = true;
+  var seeWholeWorld = false;
   if (seeWholeWorld) {
     var w = this.world.gridWidth * this.world.cellSize;
     var h = this.world.gridHeight * this.world.cellSize;

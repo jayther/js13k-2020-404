@@ -480,7 +480,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
   generateRoomLayout: function (room) {
     // TODO
     // using pixel units
-    var i, j;
+    var i;
     var bounds = {
       left: room.left * this.cellSize,
       top: room.top * this.cellSize,
@@ -510,18 +510,19 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     // Open offices
     if (room.type === World.roomTypes.officeOpen) {
       var deskWidth = 40, deskDepth = 20, deskSpacing = 40, deskInterval = deskDepth + deskSpacing;
+      var deskGroupSpacing = 5;
       var deskX, deskY;
-      var maxDesks, offset = 0, facing = Random.rangeInt(0, 2);
+      var maxDesks, deskFrontOffset, deskSideOffset, facing = Random.rangeInt(0, 2);
       var desksPerGroup = Random.rangeInt(1, 3);
       var currentDeskInGroup = Random.rangeInt(0, desksPerGroup);
       if (boundsWidth > boundsHeight) {
         // desks are vertical
         maxDesks = Math.floor(boundsWidth / deskInterval);
-        offset = Math.random() * (boundsWidth - maxDesks * deskInterval);
+        deskFrontOffset = Math.random() * (boundsWidth - maxDesks * deskInterval);
         deskY = bounds.top;
         while (deskY + deskWidth < bounds.bottom) {
           for (i = 0; i < maxDesks; i += 1) {
-            deskX = bounds.left + i * deskInterval + facing * deskDepth + offset;
+            deskX = bounds.left + i * deskInterval + facing * deskDepth + deskFrontOffset;
             desks.push({
               left: deskX,
               top: deskY,
@@ -534,17 +535,22 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
             currentDeskInGroup = 0;
             deskY += deskSpacing + deskWidth;
           } else {
-            deskY += deskWidth;
+            deskY += deskWidth + deskGroupSpacing;
           }
         }
+        deskSideOffset = Math.random() * (boundsHeight - (desks[desks.length - 1].bottom - desks[0].top));
+        desks.forEach(function (desk) {
+          desk.top += deskSideOffset;
+          desk.bottom += deskSideOffset;
+        });
       } else {
         // desks are horizontal
         maxDesks = Math.floor(boundsHeight / deskInterval);
-        offset = Math.random() * (boundsHeight - maxDesks * deskInterval);
+        deskFrontOffset = Math.random() * (boundsHeight - maxDesks * deskInterval);
         deskX = bounds.left;
         while (deskX + deskWidth < bounds.right) {
           for (i = 0; i < maxDesks; i += 1) {
-            deskY = bounds.top + i * deskInterval + facing * deskDepth + offset;
+            deskY = bounds.top + i * deskInterval + facing * deskDepth + deskFrontOffset;
             desks.push({
               left: deskX,
               top: deskY,
@@ -557,9 +563,14 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
             currentDeskInGroup = 0;
             deskX += deskSpacing + deskWidth;
           } else {
-            deskX += deskWidth;
+            deskX += deskWidth + deskGroupSpacing;
           }
         }
+        deskSideOffset = Math.random() * (boundsWidth - (desks[desks.length - 1].right - desks[0].left));
+        desks.forEach(function (desk) {
+          desk.left += deskSideOffset;
+          desk.right += deskSideOffset;
+        });
       }
     }
 
@@ -582,6 +593,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         color: '#990000'
       });
       this.addChild(rect);
+      room.furniture.push(AABB.fromRect(desk));
     }, this);
 
     var x = (room.left + room.right) / 2 * this.cellSize,

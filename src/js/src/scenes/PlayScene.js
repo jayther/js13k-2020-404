@@ -25,7 +25,7 @@ function PlayScene() {
   this.world.scaleX = 2;
   this.world.scaleY = 2;
   
-  var seeWholeWorld = true;
+  var seeWholeWorld = false;
   if (seeWholeWorld) {
     var w = this.world.gridWidth * this.world.cellSize;
     var h = this.world.gridHeight * this.world.cellSize;
