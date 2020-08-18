@@ -14,7 +14,7 @@
       { "from": "src/js/b.js", "to": "." },
       { "from": "src/style/c.css", "to": "." },
       { "from": "src/views/index.html", "to": "." },
-      { "from": "src/imgs/robot_3Dblue.png", "to": "." }
+      { "from": "src/imgs/**", "to": "." }
     ]
   },
   "templates": {
@@ -65,6 +65,7 @@
         "src/js/src/graphics/DisplayRect.js",
         "src/js/src/graphics/DisplayImg.js",
         "src/js/src/graphics/DisplayText.js",
+        "src/js/src/graphics/DisplayPath.js",
         "src/js/src/graphics/CachedContainer.js",
         
         "src/js/src/play/World.js",

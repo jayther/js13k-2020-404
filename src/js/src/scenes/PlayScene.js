@@ -5,6 +5,7 @@ function PlayScene() {
   this.mailableDesks = [];
   this.redirectedFromDesks = [];
   this.redirectedToDesks = [];
+  this.roomPointerMap = {};
   
   this.gridRange = {
     minWidth: 60,
@@ -30,6 +31,13 @@ function PlayScene() {
   this.world.generateFog();
   this.world.scaleX = 2;
   this.world.scaleY = 2;
+
+  this.pointerLayer = new DisplayContainer({
+    x: SETTINGS.width / 2,
+    y: SETTINGS.height / 2
+  });
+  this.addChild(this.pointerLayer);
+
   this.generateMailableDesks();
   
   var seeWholeWorld = false;
@@ -91,6 +99,20 @@ function PlayScene() {
     this.addSteppable(function (dts) {
       this.world.x = Math.floor(SETTINGS.width / 2 - player.x * this.world.scaleX);
       this.world.y = Math.floor(SETTINGS.height / 2 - player.y * this.world.scaleY);
+      var i, room, roomX, roomY, angle, pointer;
+      for (i = 0; i < this.mailableRooms.length; i += 1) {
+        room = this.mailableRooms[i];
+        pointer = this.roomPointerMap[room.id];
+        if (player.currentRoom !== room) {
+          pointer.visible = true;
+          roomX = (room.left + room.right) / 2 * this.world.cellSize;
+          roomY = (room.top + room.bottom) / 2 * this.world.cellSize;
+          angle = Math.atan2(roomY - player.y, roomX - player.x);
+          pointer.angle = angle;
+        } else {
+          pointer.visible = false;
+        }
+      }
     }.bind(this));
   }
 }
@@ -118,9 +140,13 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
     );
 
     // get random rooms for mailable rooms
-    var mailableRooms = [];
+    var mailableRooms = [], room, pointer;
     for (i = 0; i < mailableRoomCount; i += 1) {
-      mailableRooms.push(Random.pickAndRemove(roomPool));
+      room = Random.pickAndRemove(roomPool);
+      pointer = createPointer('white');
+      this.pointerLayer.addChild(pointer);
+      this.roomPointerMap[room.id] = pointer;
+      mailableRooms.push(room);
     }
 
     // get mailable desks
@@ -223,4 +249,21 @@ function initMailableDesk(desk) {
   var mailAabb = desk.aabb.copy();
   mailAabb.grow(5);
   desk.mailAabb = mailAabb;
+}
+
+function createPointer(color) {
+  var con = new DisplayContainer();
+  con.addChild(
+    new DisplayPath({
+      x: 150,
+      y: 0,
+      path: [
+        { x: 20, y: 0 },
+        { x: -15, y: -10 },
+        { x: -15, y: 10 }
+      ],
+      color: color
+    })
+  );
+  return con;
 }

@@ -102,7 +102,7 @@ function localServer(cb) {
   
   app.use('/c.css', express.static('src/style/c.css'));
   app.use('/bundle-wrap.js', express.static('src/js/bundle-wrap.js'));
-  app.use('/robot_3Dblue.png', express.static('src/imgs/robot_3Dblue.png'));
+  app.use(express.static('src/imgs'));
   
   app.get('/', function (req, resp) {
     resp.set('Content-Type', 'text/html');
@@ -117,9 +117,7 @@ function localServer(cb) {
 function localServerProd(cb) {
   const app = express();
   
-  app.use('/c.css', express.static('build/c.css'));
-  app.use('/b.js', express.static('build/b.js'));
-  app.use('/robot_3Dblue.png', express.static('build/robot_3Dblue.png'));
+  app.use(express.static('build'));
   
   app.get('/', function (req, resp) {
     resp.set('Content-Type', 'text/html');
@@ -167,6 +165,6 @@ exports.buildProd = exports.exportBuild;
 exports.build = exports.buildDev;
 
 exports.dev = series(exports.buildDev, localServer);
-exports.prod = series(exports.build, localServerProd);
+exports.prod = series(exports.buildProd, localServerProd);
 
-exports.dist = series(exports.build, exportDist);
+exports.dist = series(exports.buildProd, exportDist);

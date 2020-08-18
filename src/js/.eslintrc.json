@@ -21,6 +21,7 @@
     "DisplayRect": "writable",
     "DisplayImg": "writable",
     "DisplayText": "writable",
+    "DisplayPath": "writable",
     "Display": "writable",
     "CachedContainer": "writable",
     "World": "writable",

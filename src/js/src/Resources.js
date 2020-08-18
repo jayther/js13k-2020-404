@@ -1,6 +1,15 @@
 var Resources = {
   imgs: {
-    robot: "robot_3Dblue.png"
+    robot: "robot_3Dblue.png",
+    grass: "grassCenter.png",
+    stone: "stoneCenter.png",
+    wall: "roofGreyMid.png"
   },
-  loadedImgs: {}
+  patterns: {
+    grass: "repeat",
+    stone: "repeat",
+    wall: "repeat"
+  },
+  loadedImgs: {},
+  loadedPatterns: {}
 };

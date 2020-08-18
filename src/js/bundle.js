@@ -1,8 +1,17 @@
 var Resources = {
   imgs: {
-    robot: "robot_3Dblue.png"
+    robot: "robot_3Dblue.png",
+    grass: "grassCenter.png",
+    stone: "stoneCenter.png",
+    wall: "roofGreyMid.png"
   },
-  loadedImgs: {}
+  patterns: {
+    grass: "repeat",
+    stone: "repeat",
+    wall: "repeat"
+  },
+  loadedImgs: {},
+  loadedPatterns: {}
 };
 
 
@@ -416,6 +425,33 @@ DisplayText.prototype = extendPrototype(DisplayItem.prototype, {
   }
 });
   
+function DisplayPath(options) {
+  DisplayItem.apply(this, arguments);
+  var opts = extend({
+    path: [],
+    color: 'black'
+  }, options || {});
+  this.path = opts.path;
+  this.color = opts.color;
+}
+DisplayPath.prototype = extendPrototype(DisplayItem.prototype, {
+  render: function (context) {
+    context.beginPath();
+    var i, point;
+    for (i = 0; i < this.path.length; i += 1) {
+      point = this.path[i];
+      if (i === 0) {
+        context.moveTo(point.x, point.y);
+      } else {
+        context.lineTo(point.x, point.y);
+      }
+    }
+    context.closePath();
+    context.fillStyle = this.color;
+    context.fill();
+  }
+});
+
 function CachedContainer(options) {
   DisplayContainer.apply(this, arguments);
   var opts = extend({
@@ -470,6 +506,7 @@ function World() {
   this.startingRoom = null;
   this.lobbies = [];
   this.deskIdPool = 0;
+  this.roomIdPool = 0;
   
   this.bg = new CachedContainer();
   this.addChild(this.bg);
@@ -532,7 +569,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       y: 0 * this.cellSize,
       w: w * this.cellSize,
       h: h * this.cellSize,
-      color: '#000000'
+      color: Resources.loadedPatterns.wall // '#000000'
     }));
     
     // hallway floor
@@ -541,7 +578,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       y: 1 * this.cellSize,
       w: (w - 2) * this.cellSize,
       h: (h - 2) * this.cellSize,
-      color: '#656565'
+      color: Resources.loadedPatterns.grass // '#656565'
     }));
     
     var i, j, x, y, x2, y2;
@@ -711,7 +748,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         y: (chunk.top - 1) * this.cellSize,
         w: (chunk.right - chunk.left + 2) * this.cellSize,
         h: (chunk.bottom - chunk.top + 2) * this.cellSize,
-        color: '#000000'
+        color: Resources.loadedPatterns.wall // '#000000'
       }));
       
       // room floor graphic
@@ -720,7 +757,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         y: chunk.top * this.cellSize,
         w: (chunk.right - chunk.left) * this.cellSize,
         h: (chunk.bottom - chunk.top) * this.cellSize,
-        color: '#999999'
+        color: Resources.loadedPatterns.stone // '#999999'
       }));
       // put walls around final chunks
       for (x = chunk.left - 1; x < chunk.right + 1; x += 1) {
@@ -845,6 +882,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         this.setPos(x, y, World.cellTypes.door);
         this.setPos(x2, y2, World.cellTypes.door);
         chunk.connected = true;
+        chunk.id = this.roomIdPool++;
         this.rooms.push(chunk);
         // which walls have doors
         if (!chunk.doorWallFlags) {
@@ -1153,7 +1191,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       h: boundsHeight,
       color: '#007700'
     });
-    this.addChild(boundRect);
+    // this.addChild(boundRect);
 
     // place desks
     furniture.forEach(function (item) {
@@ -1446,6 +1484,7 @@ function PlayScene() {
   this.mailableDesks = [];
   this.redirectedFromDesks = [];
   this.redirectedToDesks = [];
+  this.roomPointerMap = {};
   
   this.gridRange = {
     minWidth: 60,
@@ -1471,6 +1510,13 @@ function PlayScene() {
   this.world.generateFog();
   this.world.scaleX = 2;
   this.world.scaleY = 2;
+
+  this.pointerLayer = new DisplayContainer({
+    x: SETTINGS.width / 2,
+    y: SETTINGS.height / 2
+  });
+  this.addChild(this.pointerLayer);
+
   this.generateMailableDesks();
   
   var seeWholeWorld = false;
@@ -1532,6 +1578,20 @@ function PlayScene() {
     this.addSteppable(function (dts) {
       this.world.x = Math.floor(SETTINGS.width / 2 - player.x * this.world.scaleX);
       this.world.y = Math.floor(SETTINGS.height / 2 - player.y * this.world.scaleY);
+      var i, room, roomX, roomY, angle, pointer;
+      for (i = 0; i < this.mailableRooms.length; i += 1) {
+        room = this.mailableRooms[i];
+        pointer = this.roomPointerMap[room.id];
+        if (player.currentRoom !== room) {
+          pointer.visible = true;
+          roomX = (room.left + room.right) / 2 * this.world.cellSize;
+          roomY = (room.top + room.bottom) / 2 * this.world.cellSize;
+          angle = Math.atan2(roomY - player.y, roomX - player.x);
+          pointer.angle = angle;
+        } else {
+          pointer.visible = false;
+        }
+      }
     }.bind(this));
   }
 }
@@ -1559,9 +1619,13 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
     );
 
     // get random rooms for mailable rooms
-    var mailableRooms = [];
+    var mailableRooms = [], room, pointer;
     for (i = 0; i < mailableRoomCount; i += 1) {
-      mailableRooms.push(Random.pickAndRemove(roomPool));
+      room = Random.pickAndRemove(roomPool);
+      pointer = createPointer('white');
+      this.pointerLayer.addChild(pointer);
+      this.roomPointerMap[room.id] = pointer;
+      mailableRooms.push(room);
     }
 
     // get mailable desks
@@ -1666,10 +1730,45 @@ function initMailableDesk(desk) {
   desk.mailAabb = mailAabb;
 }
 
+function createPointer(color) {
+  var con = new DisplayContainer();
+  con.addChild(
+    new DisplayPath({
+      x: 150,
+      y: 0,
+      path: [
+        { x: 20, y: 0 },
+        { x: -15, y: -10 },
+        { x: -15, y: 10 }
+      ],
+      color: color
+    })
+  );
+  return con;
+}
+
 function PreloadScene() {
   Scene.apply(this, arguments);
   this.imgs = [];
   this.finished = false;
+  this.progressText = new DisplayText({
+    x: SETTINGS.width / 2,
+    y: SETTINGS.height / 2,
+    text: '0%',
+    color: 'black',
+    align: 'center',
+    baseline: 'middle',
+    font: '32px Arial'
+  });
+  var inc = 0;
+
+  // bg
+  this.addChild(new DisplayRect({
+    w: SETTINGS.width,
+    h: SETTINGS.height,
+    color: '#777777'
+  }))
+  this.addChild(this.progressText);
 }
 PreloadScene.prototype = extendPrototype(Scene.prototype, {
   create: function () {
@@ -1687,10 +1786,25 @@ PreloadScene.prototype = extendPrototype(Scene.prototype, {
       return (img.complete ? 1 : 0) + (imgsLoaded || 0);
     }, 0);
 
+    this.progressText.text = Math.floor(loaded / this.imgs.length * 100) + '%';
+
     if (loaded >= this.imgs.length) {
-      this.finished = true;
-      this.main.setScene(new PlayScene(this.main));
+      this.finish();
     }
+  },
+  finish: function () {
+    if (this.finished) return;
+
+    // create patterns
+    Object.entries(Resources.patterns).forEach(function (entry) {
+      Resources.loadedPatterns[entry[0]] = this.main.context.createPattern(
+        Resources.loadedImgs[entry[0]],
+        entry[1]
+      );
+    }, this);
+
+    this.finished = true;
+    this.main.setScene(new PlayScene(this.main));
   }
 });
 
