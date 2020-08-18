@@ -7,8 +7,8 @@ function World() {
   this.hallwayMinChunkWidth = 20;
   this.hallwayMinChunkHeight = 20;
   this.minChunkArea = 100;
-  this.minChunkWidth = 10;
-  this.minChunkHeight = 10;
+  this.minChunkWidth = 12;
+  this.minChunkHeight = 12;
   this.hallwaySize = 2;
   this.gridWidth = 0;
   this.gridHeight = 0;
@@ -44,11 +44,21 @@ World.roomTypes = {
   officePrivate: 4,
   officeOpen: 5
 };
+World.furnitureTypes = {
+  desk: 1,
+  chair: 2
+};
 World.sides = {
   right: 1,
   bottom: 2,
   left: 4,
   top: 8
+};
+
+World.openDesk = {
+  width: 40,
+  depth: 20,
+  chairSize: 20
 };
 
 World.prototype = extendPrototype(DisplayContainer.prototype, {
@@ -411,7 +421,9 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     if (splitCount >= 10000) {
       throw new Error('Infinite loop in door placements');
     }
-    var fog;
+  },
+  generateFog: function () {
+    var fog, chunk, i, hallways = this.hallways;
     // room fog
     for (i = 0; i < this.rooms.length; i += 1) {
       chunk = this.rooms[i];
@@ -460,13 +472,13 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       if (a > 200) {
         roomTypePool.push(World.roomTypes.officeBullpen);
       }
-      if (a >= 90) {
+      if (a >= 100) {
         roomTypePool.push(World.roomTypes.officeOpen);
       }
-      if (a < 90) {
+      if (a < 100) {
         roomTypePool.push(World.roomTypes.officePrivate);
       }
-      if (a >= 90 && (this.lobbies.length === 0 || Math.random() < 0.1)) { // lesser chance for lobby
+      if (a >= 100 && (this.lobbies.length === 0 || Math.random() < 0.1)) { // lesser chance for lobby
         roomTypePool.push(World.roomTypes.lobby);
       }
       room.type = Random.pick(roomTypePool);
@@ -476,6 +488,76 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       }
       this.generateRoomLayout(room);
     }
+  },
+  createDesk: function (x, y, facing) {
+    var deskHalfWidth = World.openDesk.width / 2;
+    var chairHalfSize = World.openDesk.chairSize / 2;
+
+    if (facing === World.sides.left) {
+      return [
+        {
+          left: x,
+          top: y - deskHalfWidth,
+          right: x + World.openDesk.depth,
+          bottom: y + deskHalfWidth
+        },
+        {
+          left: x + World.openDesk.depth - chairHalfSize,
+          top: y - chairHalfSize,
+          right: x + World.openDesk.depth + chairHalfSize,
+          bottom: y + chairHalfSize
+        }
+      ];
+    }
+    if (facing === World.sides.top) {
+      return [
+        {
+          left: x - deskHalfWidth,
+          top: y,
+          right: x + deskHalfWidth,
+          bottom: y + World.openDesk.depth
+        },
+        {
+          left: x - chairHalfSize,
+          top: y + World.openDesk.depth - chairHalfSize,
+          right: x + chairHalfSize,
+          bottom: y + World.openDesk.depth + chairHalfSize
+        }
+      ];
+    }
+    if (facing == World.sides.right) {
+      return [
+        {
+          left: x - World.openDesk.depth,
+          top: y - deskHalfWidth,
+          right: x,
+          bottom: y + deskHalfWidth
+        },
+        {
+          left: x - World.openDesk.depth - chairHalfSize,
+          top: y - chairHalfSize,
+          right: x - World.openDesk.depth + chairHalfSize,
+          bottom: y + chairHalfSize
+        }
+      ];
+    }
+    if (facing == World.sides.bottom) {
+      return [
+        {
+          left: x - deskHalfWidth,
+          top: y - World.openDesk.depth,
+          right: x + deskHalfWidth,
+          bottom: y
+        },
+        {
+          left: x - chairHalfSize,
+          top: y - World.openDesk.depth - chairHalfSize,
+          right: x + chairHalfSize,
+          bottom: y - World.openDesk.depth + chairHalfSize
+        }
+      ];
+    }
+    return [];
   },
   generateRoomLayout: function (room) {
     // TODO
@@ -505,75 +587,92 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     var boundsWidth = bounds.right - bounds.left,
       boundsHeight = bounds.bottom - bounds.top;
     
-    var desks = [];
+    var furniture = [];
 
     // Open offices
     if (room.type === World.roomTypes.officeOpen) {
-      var deskWidth = 40, deskDepth = 20, deskSpacing = 40, deskInterval = deskDepth + deskSpacing;
+      var deskSpacing = 40, deskInterval = World.openDesk.depth + deskSpacing;
+      var deskHalfWidth = World.openDesk.width / 2;
+      var chairHalfSize = World.openDesk.chairSize / 2;
       var deskGroupSpacing = 5;
       var deskX, deskY;
       var maxDesks, deskFrontOffset, deskSideOffset, facing = Random.rangeInt(0, 2);
       var desksPerGroup = Random.rangeInt(1, 3);
       var currentDeskInGroup = Random.rangeInt(0, desksPerGroup);
+      var pair;
+
       if (boundsWidth > boundsHeight) {
         // desks are vertical
+        // facing: 0 == facing left, 1 == facing right
         maxDesks = Math.floor(boundsWidth / deskInterval);
         deskFrontOffset = Math.random() * (boundsWidth - maxDesks * deskInterval);
-        deskY = bounds.top;
-        while (deskY + deskWidth < bounds.bottom) {
+        deskY = bounds.top + deskHalfWidth;
+        while (deskY + deskHalfWidth < bounds.bottom) {
           for (i = 0; i < maxDesks; i += 1) {
-            deskX = bounds.left + i * deskInterval + facing * deskDepth + deskFrontOffset;
-            desks.push({
-              left: deskX,
-              top: deskY,
-              right: deskX + deskDepth,
-              bottom: deskY + deskWidth
-            });
+            deskX = bounds.left + i * deskInterval + facing * (World.openDesk.depth + chairHalfSize) + deskFrontOffset;
+            pair = this.createDesk(deskX, deskY, facing ? World.sides.right : World.sides.left);
+            furniture = furniture.concat(pair);
           }
           currentDeskInGroup += 1;
           if (currentDeskInGroup >= desksPerGroup) {
             currentDeskInGroup = 0;
-            deskY += deskSpacing + deskWidth;
+            deskY += deskSpacing + World.openDesk.width;
           } else {
-            deskY += deskWidth + deskGroupSpacing;
+            deskY += World.openDesk.width + deskGroupSpacing;
           }
         }
-        deskSideOffset = Math.random() * (boundsHeight - (desks[desks.length - 1].bottom - desks[0].top));
-        desks.forEach(function (desk) {
-          desk.top += deskSideOffset;
-          desk.bottom += deskSideOffset;
+        var topMost = null, bottomMost = null;
+        furniture.forEach(function (item) {
+          if (!topMost || item.top < topMost.top) {
+            topMost = item;
+          }
+          if (!bottomMost || item.bottom > bottomMost.bottom) {
+            bottomMost = item;
+          }
+        });
+        deskSideOffset = Math.random() * (boundsHeight - (bottomMost.bottom - topMost.top));
+        furniture.forEach(function (item) {
+          item.top += deskSideOffset;
+          item.bottom += deskSideOffset;
         });
       } else {
         // desks are horizontal
+        // facing: 0 == facing top, 1 == facing bottom
         maxDesks = Math.floor(boundsHeight / deskInterval);
         deskFrontOffset = Math.random() * (boundsHeight - maxDesks * deskInterval);
-        deskX = bounds.left;
-        while (deskX + deskWidth < bounds.right) {
+        deskX = bounds.left + deskHalfWidth;
+        while (deskX + deskHalfWidth < bounds.right) {
           for (i = 0; i < maxDesks; i += 1) {
-            deskY = bounds.top + i * deskInterval + facing * deskDepth + deskFrontOffset;
-            desks.push({
-              left: deskX,
-              top: deskY,
-              right: deskX + deskWidth,
-              bottom: deskY + deskDepth
-            });
+            deskY = bounds.top + i * deskInterval + facing * (World.openDesk.depth + chairHalfSize) + deskFrontOffset;
+            pair = this.createDesk(deskX, deskY, facing ? World.sides.bottom : World.sides.top);
+            furniture = furniture.concat(pair);
           }
           currentDeskInGroup += 1;
           if (currentDeskInGroup >= desksPerGroup) {
             currentDeskInGroup = 0;
-            deskX += deskSpacing + deskWidth;
+            deskX += deskSpacing + World.openDesk.width;
           } else {
-            deskX += deskWidth + deskGroupSpacing;
+            deskX += World.openDesk.width + deskGroupSpacing;
           }
         }
-        deskSideOffset = Math.random() * (boundsWidth - (desks[desks.length - 1].right - desks[0].left));
-        desks.forEach(function (desk) {
-          desk.left += deskSideOffset;
-          desk.right += deskSideOffset;
+        var leftMost = null, rightMost = null;
+        furniture.forEach(function (item) {
+          if (!leftMost || item.left < leftMost.left) {
+            leftMost = item;
+          }
+          if (!rightMost || item.right > rightMost.right) {
+            rightMost = item;
+          }
+        });
+        deskSideOffset = Math.random() * (boundsWidth - (rightMost.right - leftMost.left));
+        furniture.forEach(function (item) {
+          item.left += deskSideOffset;
+          item.right += deskSideOffset;
         });
       }
     }
 
+    // debug placeable area
     var boundRect = new DisplayRect({
       x: bounds.left,
       y: bounds.top,
@@ -584,16 +683,16 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     this.addChild(boundRect);
 
     // place desks
-    desks.forEach(function (desk) {
+    furniture.forEach(function (item) {
       var rect = new DisplayRect({
-        x: desk.left,
-        y: desk.top,
-        w: desk.right - desk.left,
-        h: desk.bottom - desk.top,
+        x: item.left,
+        y: item.top,
+        w: item.right - item.left,
+        h: item.bottom - item.top,
         color: '#990000'
       });
       this.addChild(rect);
-      room.furniture.push(AABB.fromRect(desk));
+      room.furniture.push(AABB.fromRect(item));
     }, this);
 
     var x = (room.left + room.right) / 2 * this.cellSize,

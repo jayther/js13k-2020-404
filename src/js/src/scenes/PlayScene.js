@@ -2,10 +2,10 @@ function PlayScene() {
   Scene.apply(this, arguments);
   
   this.gridRange = {
-    minWidth: 50,
-    maxWidth: 60,
-    minHeight: 50,
-    maxHeight: 60
+    minWidth: 60,
+    maxWidth: 70,
+    minHeight: 60,
+    maxHeight: 70
   };
   
   this.gridWidth = Random.rangeInt(this.gridRange.minWidth, this.gridRange.maxWidth);
@@ -22,10 +22,11 @@ function PlayScene() {
   this.addChild(this.world);
   this.world.generate(this.gridWidth, this.gridHeight);
   this.world.generateRoomTypes();
+  this.world.generateFog();
   this.world.scaleX = 2;
   this.world.scaleY = 2;
   
-  var seeWholeWorld = false;
+  var seeWholeWorld = true;
   if (seeWholeWorld) {
     var w = this.world.gridWidth * this.world.cellSize;
     var h = this.world.gridHeight * this.world.cellSize;

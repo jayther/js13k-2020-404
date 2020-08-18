@@ -5,7 +5,6 @@ function Player(scene, settings) {
     world: null
   }, settings || {});
   this.aabb = new AABB(0, 0, 10, 10);
-  this.prevAabb = new AABB(0, 0, 10, 10);
   this.vel = {
     x: 0,
     y: 0
@@ -21,6 +20,8 @@ function Player(scene, settings) {
   });
   this.addChild(img);
   this.img = img;
+  this.collideWithWalls = false;
+  this.collideWithFurniture = false;
   // var rect = this.rect = new DisplayRect({
   //   x: -5,
   //   y: -5,
@@ -38,62 +39,63 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
     if (this.vel.x || this.vel.y) {
       this.img.angle = JMath.angleFromVec(this.vel);
     }
-    this.prevAabb.set(this.aabb.x, this.aabb.y);
     this.x += this.vel.x * dts;
     this.y += this.vel.y * dts;
     this.updateAABB();
     
     // player collision with cells
-    var cells = this.world.getCellsAroundPos(this.x, this.y), i, cell;
-    var relX, relY;
-    for (i = 0; i < cells.length; i += 1) {
-      cell = cells[i];
-      if (!cell.passable && cell.aabb && cell.aabb.intersectsWith(this.aabb)) {
-        relX = this.prevAabb.x - cell.aabb.x;
-        relY = this.prevAabb.y - cell.aabb.y;
-        if (Math.abs(relX) > Math.abs(relY)) {
-          if (relX > 0) {
-            this.x = cell.aabb.getRight() + this.prevAabb.hw;
+    if (this.collideWithWalls) {
+      var cells = this.world.getCellsAroundPos(this.x, this.y), i, cell;
+      var relX, relY;
+      for (i = 0; i < cells.length; i += 1) {
+        cell = cells[i];
+        if (!cell.passable && cell.aabb && cell.aabb.intersectsWith(this.aabb)) {
+          relX = this.aabb.x - cell.aabb.x;
+          relY = this.aabb.y - cell.aabb.y;
+          if (Math.abs(relX) > Math.abs(relY)) {
+            if (relX > 0) {
+              this.x = cell.aabb.getRight() + this.aabb.hw;
+            } else {
+              this.x = cell.aabb.getLeft() - this.aabb.hw;
+            }
           } else {
-            this.x = cell.aabb.getLeft() - this.prevAabb.hw;
+            if (relY > 0) {
+              this.y = cell.aabb.getBottom() + this.aabb.hh;
+            } else {
+              this.y = cell.aabb.getTop() - this.aabb.hh;
+            }
           }
-        } else {
-          if (relY > 0) {
-            this.y = cell.aabb.getBottom() + this.prevAabb.hh;
-          } else {
-            this.y = cell.aabb.getTop() - this.prevAabb.hh;
-          }
+          this.updateAABB();
         }
-        this.prevAabb.set(this.aabb.x, this.aabb.y);
-        this.updateAABB();
       }
     }
 
     cell = this.world.getCellFromPos(this.x, this.y);
 
     // collide with furniture
-    if (cell && cell.room && cell.room.furniture) {
-      var furniture = cell.room.furniture, aabb;
-      for (i = 0; i < furniture.length; i += 1) {
-        aabb = furniture[i];
-        if (aabb.intersectsWith(this.aabb)) {
-          relX = this.prevAabb.x - aabb.x;
-          relY = this.prevAabb.y - aabb.y;
-          if (Math.abs(relX) > Math.abs(relY)) {
-            if (relX > 0) {
-              this.x = aabb.getRight() + this.prevAabb.hw;
+    if (this.collideWithFurniture) {
+      if (cell && cell.room && cell.room.furniture) {
+        var furniture = cell.room.furniture, aabb;
+        for (i = 0; i < furniture.length; i += 1) {
+          aabb = furniture[i];
+          if (aabb.intersectsWith(this.aabb)) {
+            relX = this.aabb.x - aabb.x;
+            relY = this.aabb.y - aabb.y;
+            if (Math.abs(relX) > Math.abs(relY)) {
+              if (relX > 0) {
+                this.x = aabb.getRight() + this.aabb.hw;
+              } else {
+                this.x = aabb.getLeft() - this.aabb.hw;
+              }
             } else {
-              this.x = aabb.getLeft() - this.prevAabb.hw;
+              if (relY > 0) {
+                this.y = aabb.getBottom() + this.aabb.hh;
+              } else {
+                this.y = aabb.getTop() - this.aabb.hh;
+              }
             }
-          } else {
-            if (relY > 0) {
-              this.y = aabb.getBottom() + this.prevAabb.hh;
-            } else {
-              this.y = aabb.getTop() - this.prevAabb.hh;
-            }
+            this.updateAABB();
           }
-          this.prevAabb.set(this.aabb.x, this.aabb.y);
-          this.updateAABB();
         }
       }
     }
