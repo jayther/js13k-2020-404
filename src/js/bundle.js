@@ -34,6 +34,10 @@ function extendPrototype() {
   return extend.apply(this, [{}].concat(Array.prototype.slice.call(arguments)));
 }
 
+function has(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
 var DOM = (function () {
   var map = {};
   return {
@@ -177,6 +181,14 @@ AABB.prototype.intersectsWith = function (aabb) {
 };
 AABB.prototype.containsPoint = function (x, y) {
   return Math.abs(this.x - x) < this.hw && Math.abs(this.y - y) < this.hh;
+};
+AABB.prototype.copy = function () {
+  return new AABB(this.x, this.y, this.hw, this.hh);
+};
+AABB.prototype.grow = function (amt) {
+  this.hw += amt;
+  this.hh += amt;
+  return this;
 };
 
 function Anim(settings) {
@@ -457,6 +469,7 @@ function World() {
   this.hallways = [];
   this.startingRoom = null;
   this.lobbies = [];
+  this.deskIdPool = 0;
   
   this.bg = new CachedContainer();
   this.addChild(this.bg);
@@ -496,8 +509,14 @@ World.sides = {
   top: 8
 };
 
-World.desk = {
+World.openDesk = {
   width: 40,
+  depth: 20,
+  chairSize: 20
+};
+
+World.privateDesk = {
+  width: 80,
   depth: 20,
   chairSize: 20
 };
@@ -930,22 +949,26 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       this.generateRoomLayout(room);
     }
   },
-  createDesk: function (x, y, facing) {
-    var deskHalfWidth = World.desk.width / 2;
-    var chairHalfSize = World.desk.chairSize / 2;
+  createDesk: function (x, y, facing, deskSettings) {
+    var deskHalfWidth = deskSettings.width / 2;
+    var chairHalfSize = deskSettings.chairSize / 2;
+    var deskId = this.deskIdPool++;
 
     if (facing === World.sides.left) {
       return [
         {
+          type: World.furnitureTypes.desk,
+          id: deskId,
           left: x,
           top: y - deskHalfWidth,
-          right: x + World.desk.depth,
+          right: x + deskSettings.depth,
           bottom: y + deskHalfWidth
         },
         {
-          left: x + World.desk.depth - chairHalfSize,
+          type: World.furnitureTypes.chair,
+          left: x + deskSettings.depth - chairHalfSize,
           top: y - chairHalfSize,
-          right: x + World.desk.depth + chairHalfSize,
+          right: x + deskSettings.depth + chairHalfSize,
           bottom: y + chairHalfSize
         }
       ];
@@ -953,31 +976,37 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     if (facing === World.sides.top) {
       return [
         {
+          type: World.furnitureTypes.desk,
+          id: deskId,
           left: x - deskHalfWidth,
           top: y,
           right: x + deskHalfWidth,
-          bottom: y + World.desk.depth
+          bottom: y + deskSettings.depth
         },
         {
+          type: World.furnitureTypes.chair,
           left: x - chairHalfSize,
-          top: y + World.desk.depth - chairHalfSize,
+          top: y + deskSettings.depth - chairHalfSize,
           right: x + chairHalfSize,
-          bottom: y + World.desk.depth + chairHalfSize
+          bottom: y + deskSettings.depth + chairHalfSize
         }
       ];
     }
     if (facing == World.sides.right) {
       return [
         {
-          left: x - World.desk.depth,
+          type: World.furnitureTypes.desk,
+          id: deskId,
+          left: x - deskSettings.depth,
           top: y - deskHalfWidth,
           right: x,
           bottom: y + deskHalfWidth
         },
         {
-          left: x - World.desk.depth - chairHalfSize,
+          type: World.furnitureTypes.chair,
+          left: x - deskSettings.depth - chairHalfSize,
           top: y - chairHalfSize,
-          right: x - World.desk.depth + chairHalfSize,
+          right: x - deskSettings.depth + chairHalfSize,
           bottom: y + chairHalfSize
         }
       ];
@@ -985,16 +1014,19 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     if (facing == World.sides.bottom) {
       return [
         {
+          type: World.furnitureTypes.desk,
+          id: deskId,
           left: x - deskHalfWidth,
-          top: y - World.desk.depth,
+          top: y - deskSettings.depth,
           right: x + deskHalfWidth,
           bottom: y
         },
         {
+          type: World.furnitureTypes.chair,
           left: x - chairHalfSize,
-          top: y - World.desk.depth - chairHalfSize,
+          top: y - deskSettings.depth - chairHalfSize,
           right: x + chairHalfSize,
-          bottom: y - World.desk.depth + chairHalfSize
+          bottom: y - deskSettings.depth + chairHalfSize
         }
       ];
     }
@@ -1032,9 +1064,9 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
 
     // Open offices
     if (room.type === World.roomTypes.officeOpen) {
-      var deskSpacing = 40, deskInterval = World.desk.depth + deskSpacing;
-      var deskHalfWidth = World.desk.width / 2;
-      var chairHalfSize = World.desk.chairSize / 2;
+      var deskSpacing = 40, deskInterval = World.openDesk.depth + deskSpacing;
+      var deskHalfWidth = World.openDesk.width / 2;
+      var chairHalfSize = World.openDesk.chairSize / 2;
       var deskGroupSpacing = 5;
       var deskX, deskY;
       var maxDesks, deskFrontOffset, deskSideOffset, facing = Random.rangeInt(0, 2);
@@ -1050,16 +1082,16 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         deskY = bounds.top + deskHalfWidth;
         while (deskY + deskHalfWidth < bounds.bottom) {
           for (i = 0; i < maxDesks; i += 1) {
-            deskX = bounds.left + i * deskInterval + facing * (World.desk.depth + chairHalfSize) + deskFrontOffset;
-            pair = this.createDesk(deskX, deskY, facing ? World.sides.right : World.sides.left);
+            deskX = bounds.left + i * deskInterval + facing * (World.openDesk.depth + chairHalfSize) + deskFrontOffset;
+            pair = this.createDesk(deskX, deskY, facing ? World.sides.right : World.sides.left, World.openDesk);
             furniture = furniture.concat(pair);
           }
           currentDeskInGroup += 1;
           if (currentDeskInGroup >= desksPerGroup) {
             currentDeskInGroup = 0;
-            deskY += deskSpacing + World.desk.width;
+            deskY += deskSpacing + World.openDesk.width;
           } else {
-            deskY += World.desk.width + deskGroupSpacing;
+            deskY += World.openDesk.width + deskGroupSpacing;
           }
         }
         var topMost = null, bottomMost = null;
@@ -1084,16 +1116,16 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         deskX = bounds.left + deskHalfWidth;
         while (deskX + deskHalfWidth < bounds.right) {
           for (i = 0; i < maxDesks; i += 1) {
-            deskY = bounds.top + i * deskInterval + facing * (World.desk.depth + chairHalfSize) + deskFrontOffset;
-            pair = this.createDesk(deskX, deskY, facing ? World.sides.bottom : World.sides.top);
+            deskY = bounds.top + i * deskInterval + facing * (World.openDesk.depth + chairHalfSize) + deskFrontOffset;
+            pair = this.createDesk(deskX, deskY, facing ? World.sides.bottom : World.sides.top, World.openDesk);
             furniture = furniture.concat(pair);
           }
           currentDeskInGroup += 1;
           if (currentDeskInGroup >= desksPerGroup) {
             currentDeskInGroup = 0;
-            deskX += deskSpacing + World.desk.width;
+            deskX += deskSpacing + World.openDesk.width;
           } else {
-            deskX += World.desk.width + deskGroupSpacing;
+            deskX += World.openDesk.width + deskGroupSpacing;
           }
         }
         var leftMost = null, rightMost = null;
@@ -1133,7 +1165,10 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         color: '#990000'
       });
       this.addChild(rect);
-      room.furniture.push(AABB.fromRect(item));
+      var aabb = AABB.fromRect(item);
+      item.aabb = aabb;
+      item.displayRect = rect;
+      room.furniture.push(item);
     }, this);
 
     var x = (room.left + room.right) / 2 * this.cellSize,
@@ -1262,8 +1297,8 @@ function Player(scene, settings) {
   });
   this.addChild(img);
   this.img = img;
-  this.collideWithWalls = false;
-  this.collideWithFurniture = false;
+  this.collideWithWalls = true;
+  this.collideWithFurniture = true;
   // var rect = this.rect = new DisplayRect({
   //   x: -5,
   //   y: -5,
@@ -1319,7 +1354,17 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
       if (cell && cell.room && cell.room.furniture) {
         var furniture = cell.room.furniture, aabb;
         for (i = 0; i < furniture.length; i += 1) {
-          aabb = furniture[i];
+          // mail time
+          if (furniture[i].type === World.furnitureTypes.desk) {
+            var desk = furniture[i];
+            if (desk.needsMail && desk.mailAabb.intersectsWith(this.aabb)) {
+              desk.needsMail = false;
+              this.scene.mailDelivered(desk);
+            }
+          }
+
+          // collide with furniture
+          aabb = furniture[i].aabb;
           if (aabb.intersectsWith(this.aabb)) {
             relX = this.aabb.x - aabb.x;
             relY = this.aabb.y - aabb.y;
@@ -1396,6 +1441,11 @@ Scene.prototype = extendPrototype(DisplayContainer.prototype, {
 
 function PlayScene() {
   Scene.apply(this, arguments);
+
+  this.mailableRooms = [];
+  this.mailableDesks = [];
+  this.redirectedFromDesks = [];
+  this.redirectedToDesks = [];
   
   this.gridRange = {
     minWidth: 60,
@@ -1421,8 +1471,9 @@ function PlayScene() {
   this.world.generateFog();
   this.world.scaleX = 2;
   this.world.scaleY = 2;
+  this.generateMailableDesks();
   
-  var seeWholeWorld = true;
+  var seeWholeWorld = false;
   if (seeWholeWorld) {
     var w = this.world.gridWidth * this.world.cellSize;
     var h = this.world.gridHeight * this.world.cellSize;
@@ -1489,8 +1540,131 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
     this.keys.forEach(function (key) {
       key.destroy();
     });
+  },
+  generateMailableDesks: function () {
+    // get rooms with desks
+    var i;
+    var roomPool = this.world.rooms.filter(function (room) {
+      return room.furniture &&
+        room.furniture.length &&
+        room.furniture.some(function (item) {
+          return item.type === World.furnitureTypes.desk;
+        });
+    });
+
+    // at least [minMailableRooms] rooms, at most [maxMailableRoomRate] of the rooms
+    var mailableRoomCount = Random.rangeInt(
+      SETTINGS.minMailableRooms,
+      Math.max(SETTINGS.minMailableRooms + 1, Math.floor(roomPool.length * SETTINGS.maxMailableRoomRate))
+    );
+
+    // get random rooms for mailable rooms
+    var mailableRooms = [];
+    for (i = 0; i < mailableRoomCount; i += 1) {
+      mailableRooms.push(Random.pickAndRemove(roomPool));
+    }
+
+    // get mailable desks
+    var mailableDesks = mailableRooms.reduce(reduceRoomsToDesks, []);
+
+    // desks from other rooms
+    var otherDesks = roomPool.reduce(reduceRoomsToDesks, []);
+
+    // redirect some desks to others
+    var missingCount = Random.rangeInt(
+      SETTINGS.minMissingPeople,
+      SETTINGS.maxMissingPeople + 1
+    );
+    if (missingCount > mailableDesks.length) {
+      missingCount = mailableDesks.length;
+    }
+    var redirectFrom, redirectTo, redirectedFromDesks = [], redirectedToDesks = [];
+    for (i = 0; i < missingCount; i += 1) {
+      redirectFrom = Random.pickAndRemove(mailableDesks);
+      redirectTo = Random.pickAndRemove(otherDesks);
+      redirectFrom.redirectTo = redirectTo.id;
+      redirectTo.redirectFrom = redirectFrom.id;
+      redirectedFromDesks.push(redirectFrom);
+      redirectedToDesks.push(redirectTo);
+    }
+
+    mailableDesks.forEach(initMailableDesk);
+    redirectedFromDesks.forEach(initMailableDesk);
+    redirectedToDesks.forEach(initMailableDesk);
+
+    this.mailableRooms = mailableRooms;
+    this.mailableDesks = mailableDesks;
+    this.redirectedFromDesks = redirectedFromDesks;
+    this.redirectedToDesks = redirectedToDesks;
+
+    // debug
+    this.mailableDesks.forEach(function (desk) {
+      desk.displayRect.color = 'white';
+    });
+    this.redirectedFromDesks.forEach(function (desk) {
+      desk.displayRect.color = 'blue';
+    });
+    this.redirectedToDesks.forEach(function (desk) {
+      desk.displayRect.color = 'gray';
+    });
+  },
+  mailDelivered: function (desk) {
+    desk.displayRect.color = 'red';
+    var envelope = new DisplayRect({
+      x: this.player.x,
+      y: this.player.y,
+      w: 20,
+      h: 10,
+      color: '#eeeeee',
+      anchorX: 10,
+      anchorY: 5,
+      angle: Random.range(0, Math.PI * 2)
+    });
+    this.world.addChild(envelope);
+    var animX = new Anim({
+      object: envelope,
+      property: 'x',
+      from: this.player.x,
+      to: desk.aabb.x,
+      duration: 0.5,
+      timeFunction: Anim.easingFunctions.easeInCubic
+    });
+    var animY = new Anim({
+      object: envelope,
+      property: 'y',
+      from: this.player.y,
+      to: desk.aabb.y,
+      duration: 0.5,
+      timeFunction: Anim.easingFunctions.easeInCubic,
+      onEnd: function () {
+        this.world.removeChild(envelope);
+      }.bind(this)
+    });
+    var animAngle = new Anim({
+      object: envelope,
+      property: 'angle',
+      from: envelope.angle,
+      to: envelope.angle + Random.range(-Math.PI, Math.PI),
+      duration: 0.5
+    });
+    this.main.animManager.add(animX);
+    this.main.animManager.add(animY);
+    this.main.animManager.add(animAngle);
   }
 });
+
+function reduceRoomsToDesks(accumulator, room) {
+  return accumulator.concat(room.furniture.filter(function (item) {
+    return item.type == World.furnitureTypes.desk;
+  }));
+}
+
+function initMailableDesk(desk) {
+  desk.needsMail = true;
+  var mailAabb = desk.aabb.copy();
+  mailAabb.grow(5);
+  desk.mailAabb = mailAabb;
+}
 
 function PreloadScene() {
   Scene.apply(this, arguments);

@@ -26,3 +26,7 @@ function extend(target, varArgs) {
 function extendPrototype() {
   return extend.apply(this, [{}].concat(Array.prototype.slice.call(arguments)));
 }
+
+function has(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}

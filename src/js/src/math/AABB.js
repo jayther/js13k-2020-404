@@ -45,3 +45,11 @@ AABB.prototype.intersectsWith = function (aabb) {
 AABB.prototype.containsPoint = function (x, y) {
   return Math.abs(this.x - x) < this.hw && Math.abs(this.y - y) < this.hh;
 };
+AABB.prototype.copy = function () {
+  return new AABB(this.x, this.y, this.hw, this.hh);
+};
+AABB.prototype.grow = function (amt) {
+  this.hw += amt;
+  this.hh += amt;
+  return this;
+};

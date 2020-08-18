@@ -2,7 +2,11 @@
   "game": {
     "title": "Mail Delivery",
     "width": 640,
-    "height": 360
+    "height": 360,
+    "minMailableRooms": 2,
+    "maxMailableRoomRate": 0.25,
+    "minMissingPeople": 5,
+    "maxMissingPeople": 10
   },
   "export": {
     "path": "build",
@@ -168,7 +172,14 @@
               "position",
               "complete",
               "onload",
-              "src"
+              "src",
+              "minMailableRooms",
+              "maxMailableRoomRate",
+              "minMissingPeople",
+              "maxMissingPeople",
+              "x",
+              "y",
+              "angle"
             ]
           }
         }

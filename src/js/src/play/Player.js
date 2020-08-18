@@ -20,8 +20,8 @@ function Player(scene, settings) {
   });
   this.addChild(img);
   this.img = img;
-  this.collideWithWalls = false;
-  this.collideWithFurniture = false;
+  this.collideWithWalls = true;
+  this.collideWithFurniture = true;
   // var rect = this.rect = new DisplayRect({
   //   x: -5,
   //   y: -5,
@@ -77,7 +77,17 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
       if (cell && cell.room && cell.room.furniture) {
         var furniture = cell.room.furniture, aabb;
         for (i = 0; i < furniture.length; i += 1) {
-          aabb = furniture[i];
+          // mail time
+          if (furniture[i].type === World.furnitureTypes.desk) {
+            var desk = furniture[i];
+            if (desk.needsMail && desk.mailAabb.intersectsWith(this.aabb)) {
+              desk.needsMail = false;
+              this.scene.mailDelivered(desk);
+            }
+          }
+
+          // collide with furniture
+          aabb = furniture[i].aabb;
           if (aabb.intersectsWith(this.aabb)) {
             relX = this.aabb.x - aabb.x;
             relY = this.aabb.y - aabb.y;
