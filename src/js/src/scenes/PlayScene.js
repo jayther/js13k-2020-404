@@ -70,27 +70,27 @@ function PlayScene() {
   var vel = this.player.vel;
   this.keys = [];
   this.aKey = KB(KB.keys.a, function () {
-    vel.x += -speed;
+    player.addDirection(World.sides.left);
   }, function () {
-    vel.x -= -speed;
+    player.removeDirection(World.sides.left);
   });
   this.keys.push(this.aKey);
   this.sKey = KB(KB.keys.s, function () {
-    vel.y += speed;
+    player.addDirection(World.sides.bottom);
   }, function () {
-    vel.y -= speed;
+    player.removeDirection(World.sides.bottom);
   });
   this.keys.push(this.sKey);
   this.dKey = KB(KB.keys.d, function () {
-    vel.x += speed;
+    player.addDirection(World.sides.right);
   }, function () {
-    vel.x -= speed;
+    player.removeDirection(World.sides.right);
   });
   this.keys.push(this.dKey);
   this.wKey = KB(KB.keys.w, function () {
-    vel.y += -speed;
+    player.addDirection(World.sides.top);
   }, function () {
-    vel.y -= -speed;
+    player.removeDirection(World.sides.top);
   });
   this.keys.push(this.wKey);
   
