@@ -1322,6 +1322,7 @@ function Player(scene, settings) {
     world: null
   }, settings || {});
   this.aabb = new AABB(0, 0, 10, 10);
+  this.prevAabb = new AABB(0, 0, 10, 10);
   this.vel = {
     x: 0,
     y: 0
@@ -1350,6 +1351,7 @@ function Player(scene, settings) {
 }
 Player.prototype = extendPrototype(DisplayContainer.prototype, {
   updateAABB: function () {
+    this.prevAabb.set(this.aabb.x, this.aabb.y);
     this.aabb.set(this.x, this.y);
   },
   step: function (dts) {
@@ -1363,26 +1365,10 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
     // player collision with cells
     if (this.collideWithWalls) {
       var cells = this.world.getCellsAroundPos(this.x, this.y), i, cell;
-      var relX, relY;
       for (i = 0; i < cells.length; i += 1) {
         cell = cells[i];
-        if (!cell.passable && cell.aabb && cell.aabb.intersectsWith(this.aabb)) {
-          relX = this.aabb.x - cell.aabb.x;
-          relY = this.aabb.y - cell.aabb.y;
-          if (Math.abs(relX) > Math.abs(relY)) {
-            if (relX > 0) {
-              this.x = cell.aabb.getRight() + this.aabb.hw;
-            } else {
-              this.x = cell.aabb.getLeft() - this.aabb.hw;
-            }
-          } else {
-            if (relY > 0) {
-              this.y = cell.aabb.getBottom() + this.aabb.hh;
-            } else {
-              this.y = cell.aabb.getTop() - this.aabb.hh;
-            }
-          }
-          this.updateAABB();
+        if (!cell.passable && cell.aabb) {
+          this.maybeCollideWith(cell.aabb);
         }
       }
     }
@@ -1392,7 +1378,7 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
     // collide with furniture
     if (this.collideWithFurniture) {
       if (cell && cell.room && cell.room.furniture) {
-        var furniture = cell.room.furniture, aabb;
+        var furniture = cell.room.furniture;
         for (i = 0; i < furniture.length; i += 1) {
           // mail time
           if (furniture[i].type === World.furnitureTypes.desk) {
@@ -1404,25 +1390,7 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
           }
 
           // collide with furniture
-          aabb = furniture[i].aabb;
-          if (aabb.intersectsWith(this.aabb)) {
-            relX = this.aabb.x - aabb.x;
-            relY = this.aabb.y - aabb.y;
-            if (Math.abs(relX) > Math.abs(relY)) {
-              if (relX > 0) {
-                this.x = aabb.getRight() + this.aabb.hw;
-              } else {
-                this.x = aabb.getLeft() - this.aabb.hw;
-              }
-            } else {
-              if (relY > 0) {
-                this.y = aabb.getBottom() + this.aabb.hh;
-              } else {
-                this.y = aabb.getTop() - this.aabb.hh;
-              }
-            }
-            this.updateAABB();
-          }
+          this.maybeCollideWith(furniture[i].aabb);
         }
       }
     }
@@ -1452,6 +1420,27 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
         this.currentRoom.fogAnim = null;
       }
       this.currentRoom.fog.alpha = 0;
+    }
+  },
+  maybeCollideWith(aabb) {
+    var relX, relY;
+    if (aabb.intersectsWith(this.aabb)) {
+      relX = this.aabb.x - aabb.x;
+      relY = this.aabb.y - aabb.y;
+      if (Math.abs(relX) > Math.abs(relY)) {
+        if (relX > 0) {
+          this.x = aabb.getRight() + this.aabb.hw;
+        } else {
+          this.x = aabb.getLeft() - this.aabb.hw;
+        }
+      } else {
+        if (relY > 0) {
+          this.y = aabb.getBottom() + this.aabb.hh;
+        } else {
+          this.y = aabb.getTop() - this.aabb.hh;
+        }
+      }
+      this.updateAABB();
     }
   }
 });
