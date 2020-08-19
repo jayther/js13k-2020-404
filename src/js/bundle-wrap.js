@@ -1323,6 +1323,7 @@ function Player(scene, settings) {
   }, settings || {});
   this.aabb = new AABB(0, 0, 10, 10);
   this.prevAabb = new AABB(0, 0, 10, 10);
+  this.speed = 200;
   this.vel = {
     x: 0,
     y: 0
@@ -1340,6 +1341,7 @@ function Player(scene, settings) {
   this.img = img;
   this.collideWithWalls = true;
   this.collideWithFurniture = true;
+  this.moveDirection = 0;
   // var rect = this.rect = new DisplayRect({
   //   x: -5,
   //   y: -5,
@@ -1350,6 +1352,30 @@ function Player(scene, settings) {
   // this.addChild(rect);
 }
 Player.prototype = extendPrototype(DisplayContainer.prototype, {
+  addDirection: function (direction) {
+    this.moveDirection |= direction;
+    this.updateVel();
+  },
+  removeDirection: function (direction) {
+    this.moveDirection ^= direction;
+    this.updateVel();
+  },
+  updateVel: function () {
+    this.vel.x = 0;
+    this.vel.y = 0;
+    if (this.moveDirection & World.sides.left) {
+      this.vel.x -= this.speed;
+    }
+    if (this.moveDirection & World.sides.right) {
+      this.vel.x += this.speed;
+    }
+    if (this.moveDirection & World.sides.top) {
+      this.vel.y -= this.speed;
+    }
+    if (this.moveDirection & World.sides.bottom) {
+      this.vel.y += this.speed;
+    }
+  },
   updateAABB: function () {
     this.prevAabb.set(this.aabb.x, this.aabb.y);
     this.aabb.set(this.x, this.y);
@@ -1540,27 +1566,27 @@ function PlayScene() {
   var vel = this.player.vel;
   this.keys = [];
   this.aKey = KB(KB.keys.a, function () {
-    vel.x += -speed;
+    player.addDirection(World.sides.left);
   }, function () {
-    vel.x -= -speed;
+    player.removeDirection(World.sides.left);
   });
   this.keys.push(this.aKey);
   this.sKey = KB(KB.keys.s, function () {
-    vel.y += speed;
+    player.addDirection(World.sides.bottom);
   }, function () {
-    vel.y -= speed;
+    player.removeDirection(World.sides.bottom);
   });
   this.keys.push(this.sKey);
   this.dKey = KB(KB.keys.d, function () {
-    vel.x += speed;
+    player.addDirection(World.sides.right);
   }, function () {
-    vel.x -= speed;
+    player.removeDirection(World.sides.right);
   });
   this.keys.push(this.dKey);
   this.wKey = KB(KB.keys.w, function () {
-    vel.y += -speed;
+    player.addDirection(World.sides.top);
   }, function () {
-    vel.y -= -speed;
+    player.removeDirection(World.sides.top);
   });
   this.keys.push(this.wKey);
   
