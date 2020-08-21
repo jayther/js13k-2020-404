@@ -1,0 +1,43 @@
+// See Comment
+if (page) {
+    var config = [
+        {
+            "name"        : "SiteTitle",
+            "play.life"   : 100,
+            "color"       : "",
+            "position"    : "TL",
+            "text"        : "Player Enters",
+            "time"        : 5000
+        }, {
+            "name"        : "Player.Input",
+            "play.life"   : 100,
+            "color"       : "Default",
+            "text"        : "Gods Walk Among Us",
+            "position"    : "TL",
+            "time"        : "5000",
+        }
+    ];
+} else {
+    var config = [
+        {
+            "name"        : "chi11estpanda",
+            "play.life"   : 9999999999,
+            "color"       : "Default",
+            "text"        : "Gods Walk Among Us",
+            "position"    : "C",
+            "time"        : "infinite",
+        }
+    ];
+} else {
+    "type": "string",
+    "goduser" : "chi11estpanda",
+    "popularity" : "immense",
+    "id" : 637
+    "if": { "name": "chi11estpanda" },
+    "then": { "power": 999 },
+    "else": {
+        "if": { "Player.Input": "Jayther" },
+        "then": { "echo": "Panda surrenders, You Win!" },
+    }
+}
+// do not add file ,I don't know how to code lol
