@@ -48,7 +48,9 @@ World.roomTypes = {
 };
 World.furnitureTypes = {
   desk: 1,
-  chair: 2
+  doubleDesk: 2,
+  chair: 3,
+  invisible: 4
 };
 World.sides = {
   right: 1,
@@ -60,7 +62,16 @@ World.sides = {
 World.openDesk = {
   width: 40,
   depth: 20,
-  chairSize: 20
+  chairSize: 20,
+  type: World.furnitureTypes.desk
+};
+
+World.openDeskDouble = {
+  width: 85,
+  depth: 20,
+  chairSize: 20,
+  spacing: 5,
+  type: World.furnitureTypes.doubleDesk
 };
 
 World.privateDesk = {
@@ -503,79 +514,56 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     var chairHalfSize = deskSettings.chairSize / 2;
     var deskId = this.deskIdPool++;
 
+    // collision rect for both desk and chair
     if (facing === World.sides.left) {
       return [
         {
-          type: World.furnitureTypes.desk,
+          type: deskSettings.type,
           id: deskId,
           left: x,
           top: y - deskHalfWidth,
-          right: x + deskSettings.depth,
-          bottom: y + deskHalfWidth
-        },
-        {
-          type: World.furnitureTypes.chair,
-          left: x + deskSettings.depth - chairHalfSize,
-          top: y - chairHalfSize,
           right: x + deskSettings.depth + chairHalfSize,
-          bottom: y + chairHalfSize
+          bottom: y + deskHalfWidth,
+          facing: facing
         }
       ];
     }
     if (facing === World.sides.top) {
       return [
         {
-          type: World.furnitureTypes.desk,
+          type: deskSettings.type,
           id: deskId,
           left: x - deskHalfWidth,
           top: y,
           right: x + deskHalfWidth,
-          bottom: y + deskSettings.depth
-        },
-        {
-          type: World.furnitureTypes.chair,
-          left: x - chairHalfSize,
-          top: y + deskSettings.depth - chairHalfSize,
-          right: x + chairHalfSize,
-          bottom: y + deskSettings.depth + chairHalfSize
+          bottom: y + deskSettings.depth + chairHalfSize,
+          facing: facing
         }
       ];
     }
     if (facing == World.sides.right) {
       return [
         {
-          type: World.furnitureTypes.desk,
+          type: deskSettings.type,
           id: deskId,
-          left: x - deskSettings.depth,
+          left: x - deskSettings.depth - chairHalfSize,
           top: y - deskHalfWidth,
           right: x,
-          bottom: y + deskHalfWidth
-        },
-        {
-          type: World.furnitureTypes.chair,
-          left: x - deskSettings.depth - chairHalfSize,
-          top: y - chairHalfSize,
-          right: x - deskSettings.depth + chairHalfSize,
-          bottom: y + chairHalfSize
+          bottom: y + deskHalfWidth,
+          facing: facing
         }
       ];
     }
     if (facing == World.sides.bottom) {
       return [
         {
-          type: World.furnitureTypes.desk,
+          type: deskSettings.type,
           id: deskId,
           left: x - deskHalfWidth,
-          top: y - deskSettings.depth,
-          right: x + deskHalfWidth,
-          bottom: y
-        },
-        {
-          type: World.furnitureTypes.chair,
-          left: x - chairHalfSize,
           top: y - deskSettings.depth - chairHalfSize,
-          right: x + chairHalfSize,
-          bottom: y - deskSettings.depth + chairHalfSize
+          right: x + deskHalfWidth,
+          bottom: y,
+          facing: facing
         }
       ];
     }
@@ -584,7 +572,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
   generateRoomLayout: function (room) {
     // TODO
     // using pixel units
-    var i;
+    var furniture = [];
     var bounds = {
       left: room.left * this.cellSize,
       top: room.top * this.cellSize,
@@ -606,117 +594,78 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     if (room.doorWallFlags & World.sides.bottom) {
       bounds.bottom -= this.cellSize * offset;
     }
-    var boundsWidth = bounds.right - bounds.left,
-      boundsHeight = bounds.bottom - bounds.top;
-    
-    var furniture = [];
 
-    // Open offices
     if (room.type === World.roomTypes.officeOpen) {
-      var deskSpacing = 40, deskInterval = World.openDesk.depth + deskSpacing;
-      var deskHalfWidth = World.openDesk.width / 2;
-      var chairHalfSize = World.openDesk.chairSize / 2;
-      var deskGroupSpacing = 5;
-      var deskX, deskY;
-      var maxDesks, deskFrontOffset, deskSideOffset, facing = Random.rangeInt(0, 2);
-      var desksPerGroup = Random.rangeInt(1, 3);
-      var currentDeskInGroup = Random.rangeInt(0, desksPerGroup);
-      var pair;
-
-      if (boundsWidth > boundsHeight) {
-        // desks are vertical
-        // facing: 0 == facing left, 1 == facing right
-        maxDesks = Math.floor(boundsWidth / deskInterval);
-        deskFrontOffset = Math.random() * (boundsWidth - maxDesks * deskInterval);
-        deskY = bounds.top + deskHalfWidth;
-        while (deskY + deskHalfWidth < bounds.bottom) {
-          for (i = 0; i < maxDesks; i += 1) {
-            deskX = bounds.left + i * deskInterval + facing * (World.openDesk.depth + chairHalfSize) + deskFrontOffset;
-            pair = this.createDesk(deskX, deskY, facing ? World.sides.right : World.sides.left, World.openDesk);
-            furniture = furniture.concat(pair);
-          }
-          currentDeskInGroup += 1;
-          if (currentDeskInGroup >= desksPerGroup) {
-            currentDeskInGroup = 0;
-            deskY += deskSpacing + World.openDesk.width;
-          } else {
-            deskY += World.openDesk.width + deskGroupSpacing;
-          }
-        }
-        var topMost = null, bottomMost = null;
-        furniture.forEach(function (item) {
-          if (!topMost || item.top < topMost.top) {
-            topMost = item;
-          }
-          if (!bottomMost || item.bottom > bottomMost.bottom) {
-            bottomMost = item;
-          }
-        });
-        deskSideOffset = Math.random() * (boundsHeight - (bottomMost.bottom - topMost.top));
-        furniture.forEach(function (item) {
-          item.top += deskSideOffset;
-          item.bottom += deskSideOffset;
-        });
-      } else {
-        // desks are horizontal
-        // facing: 0 == facing top, 1 == facing bottom
-        maxDesks = Math.floor(boundsHeight / deskInterval);
-        deskFrontOffset = Math.random() * (boundsHeight - maxDesks * deskInterval);
-        deskX = bounds.left + deskHalfWidth;
-        while (deskX + deskHalfWidth < bounds.right) {
-          for (i = 0; i < maxDesks; i += 1) {
-            deskY = bounds.top + i * deskInterval + facing * (World.openDesk.depth + chairHalfSize) + deskFrontOffset;
-            pair = this.createDesk(deskX, deskY, facing ? World.sides.bottom : World.sides.top, World.openDesk);
-            furniture = furniture.concat(pair);
-          }
-          currentDeskInGroup += 1;
-          if (currentDeskInGroup >= desksPerGroup) {
-            currentDeskInGroup = 0;
-            deskX += deskSpacing + World.openDesk.width;
-          } else {
-            deskX += World.openDesk.width + deskGroupSpacing;
-          }
-        }
-        var leftMost = null, rightMost = null;
-        furniture.forEach(function (item) {
-          if (!leftMost || item.left < leftMost.left) {
-            leftMost = item;
-          }
-          if (!rightMost || item.right > rightMost.right) {
-            rightMost = item;
-          }
-        });
-        deskSideOffset = Math.random() * (boundsWidth - (rightMost.right - leftMost.left));
-        furniture.forEach(function (item) {
-          item.left += deskSideOffset;
-          item.right += deskSideOffset;
-        });
-      }
+      furniture = this.generateOpenOffice(bounds);
     }
 
     // debug placeable area
     var boundRect = new DisplayRect({
       x: bounds.left,
       y: bounds.top,
-      w: boundsWidth,
-      h: boundsHeight,
+      w: bounds.right - bounds.left,
+      h: bounds.bottom - bounds.top,
       color: '#007700'
     });
-    // this.addChild(boundRect);
+    this.addChild(boundRect);
 
     // place desks
     furniture.forEach(function (item) {
-      var rect = new DisplayRect({
-        x: item.left,
-        y: item.top,
-        w: item.right - item.left,
-        h: item.bottom - item.top,
-        color: '#990000'
-      });
-      this.addChild(rect);
+      // TODO replace with image of desk
+      var rect;
+      item.displayRects = [];
+      if (item.type === World.furnitureTypes.desk) {
+        rect = new DisplayRect({
+          x: item.left,
+          y: item.top,
+          w: item.right - item.left,
+          h: item.bottom - item.top,
+          color: '#990000'
+        });
+        this.addChild(rect);
+        item.displayRects.push(rect);
+      } else if (item.type === World.furnitureTypes.doubleDesk) {
+        var deskWidth = (World.openDeskDouble.width - World.openDeskDouble.spacing) / 2;
+        if (item.facing & (World.sides.left | World.sides.right)) {
+          // vertical
+          rect = new DisplayRect({
+            x: item.left,
+            y: item.top,
+            w: item.right - item.left,
+            h: deskWidth
+          });
+          this.addChild(rect);
+          item.displayRects.push(rect);
+          rect = new DisplayRect({
+            x: item.left,
+            y: item.top + deskWidth + World.openDeskDouble.spacing,
+            w: item.right - item.left,
+            h: deskWidth
+          });
+          this.addChild(rect);
+          item.displayRects.push(rect);
+        } else {
+          // horizontal
+          rect = new DisplayRect({
+            x: item.left,
+            y: item.top,
+            w: deskWidth,
+            h: item.bottom - item.top
+          });
+          this.addChild(rect);
+          item.displayRects.push(rect);
+          rect = new DisplayRect({
+            x: item.left + deskWidth + World.openDeskDouble.spacing,
+            y: item.top,
+            w: deskWidth,
+            h: item.bottom - item.top
+          });
+          this.addChild(rect);
+          item.displayRects.push(rect);
+        }
+      }
       var aabb = AABB.fromRect(item);
       item.aabb = aabb;
-      item.displayRect = rect;
       room.furniture.push(item);
     }, this);
 
@@ -734,6 +683,82 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       font: '36px Arial'
     });
     this.addChild(displayText);
+  },
+  generateOpenOffice: function (bounds) {
+    var i;
+    var boundsWidth = bounds.right - bounds.left,
+      boundsHeight = bounds.bottom - bounds.top;
+    
+    var furniture = [];
+    var pair, deskSettings = Random.pick([
+      World.openDesk,
+      World.openDeskDouble
+    ]);
+    var deskSpacing = 50, deskInterval = deskSettings.depth + deskSpacing;
+    var deskHalfWidth = deskSettings.width / 2;
+    var chairHalfSize = deskSettings.chairSize / 2;
+    var deskX, deskY;
+    var maxDesks, deskFrontOffset, deskSideOffset, facing = Random.rangeInt(0, 2);
+
+    if (boundsWidth > boundsHeight) {
+      // desks are vertical
+      // facing: 0 == facing left, 1 == facing right
+      maxDesks = Math.floor(boundsWidth / deskInterval);
+      deskFrontOffset = Math.random() * (boundsWidth - maxDesks * deskInterval);
+      deskY = bounds.top + deskHalfWidth;
+      while (deskY + deskHalfWidth < bounds.bottom) {
+        for (i = 0; i < maxDesks; i += 1) {
+          deskX = bounds.left + i * deskInterval + facing * (deskSettings.depth + chairHalfSize) + deskFrontOffset;
+          pair = this.createDesk(deskX, deskY, facing ? World.sides.right : World.sides.left, deskSettings);
+          furniture = furniture.concat(pair);
+        }
+        deskY += deskSpacing + deskSettings.width;
+      }
+      var topMost = null, bottomMost = null;
+      furniture.forEach(function (item) {
+        if (!topMost || item.top < topMost.top) {
+          topMost = item;
+        }
+        if (!bottomMost || item.bottom > bottomMost.bottom) {
+          bottomMost = item;
+        }
+      });
+      deskSideOffset = Math.random() * (boundsHeight - (bottomMost.bottom - topMost.top));
+      furniture.forEach(function (item) {
+        item.top += deskSideOffset;
+        item.bottom += deskSideOffset;
+      });
+    } else {
+      // desks are horizontal
+      // facing: 0 == facing top, 1 == facing bottom
+      maxDesks = Math.floor(boundsHeight / deskInterval);
+      deskFrontOffset = Math.random() * (boundsHeight - maxDesks * deskInterval);
+      deskX = bounds.left + deskHalfWidth;
+      while (deskX + deskHalfWidth < bounds.right) {
+        for (i = 0; i < maxDesks; i += 1) {
+          deskY = bounds.top + i * deskInterval + facing * (deskSettings.depth + chairHalfSize) + deskFrontOffset;
+          pair = this.createDesk(deskX, deskY, facing ? World.sides.bottom : World.sides.top, deskSettings);
+          furniture = furniture.concat(pair);
+        }
+        deskX += deskSpacing + deskSettings.width;
+      }
+      var leftMost = null, rightMost = null;
+      furniture.forEach(function (item) {
+        if (!leftMost || item.left < leftMost.left) {
+          leftMost = item;
+        }
+        if (!rightMost || item.right > rightMost.right) {
+          rightMost = item;
+        }
+      });
+      deskSideOffset = Math.random() * (boundsWidth - (rightMost.right - leftMost.left));
+      furniture.forEach(function (item) {
+        item.left += deskSideOffset;
+        item.right += deskSideOffset;
+      });
+    }
+
+    return furniture;
   },
   createCell: function (x, y, type, room) {
     var color = null,

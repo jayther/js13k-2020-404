@@ -40,7 +40,7 @@ function PlayScene() {
 
   this.generateMailableDesks();
   
-  var seeWholeWorld = false;
+  var seeWholeWorld = true;
   if (seeWholeWorld) {
     var w = this.world.gridWidth * this.world.cellSize;
     var h = this.world.gridHeight * this.world.cellSize;
@@ -55,8 +55,6 @@ function PlayScene() {
     this.world.hallways[0].fog.visible = false;
   }
   
-  var speed = 200;
-  
   var player = this.player = new Player(this, {
     world: this.world
   });
@@ -67,7 +65,6 @@ function PlayScene() {
   this.player.y = (room.top + room.bottom) / 2 * this.world.cellSize;
   this.player.updateAABB();
   
-  var vel = this.player.vel;
   this.keys = [];
   this.aKey = KB(KB.keys.a, function () {
     player.addDirection(World.sides.left);
@@ -129,7 +126,7 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
       return room.furniture &&
         room.furniture.length &&
         room.furniture.some(function (item) {
-          return item.type === World.furnitureTypes.desk;
+          return item.type === World.furnitureTypes.desk || item.type === World.furnitureTypes.doubleDesk;
         });
     });
 
@@ -184,17 +181,25 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
 
     // debug
     this.mailableDesks.forEach(function (desk) {
-      desk.displayRect.color = 'white';
+      desk.displayRects.forEach(function (rect) {
+        rect.color = 'white';
+      });
     });
     this.redirectedFromDesks.forEach(function (desk) {
-      desk.displayRect.color = 'blue';
+      desk.displayRects.forEach(function (rect) {
+        rect.color = 'blue';
+      });
     });
     this.redirectedToDesks.forEach(function (desk) {
-      desk.displayRect.color = 'gray';
+      desk.displayRects.forEach(function (rect) {
+        rect.color = 'gray';
+      });
     });
   },
   mailDelivered: function (desk) {
-    desk.displayRect.color = 'red';
+    desk.displayRects.forEach(function (rect) {
+      rect.color = 'red';
+    });
     var envelope = new DisplayRect({
       x: this.player.x,
       y: this.player.y,
@@ -240,7 +245,7 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
 
 function reduceRoomsToDesks(accumulator, room) {
   return accumulator.concat(room.furniture.filter(function (item) {
-    return item.type == World.furnitureTypes.desk;
+    return item.type === World.furnitureTypes.desk || item.type === World.furnitureTypes.doubleDesk;
   }));
 }
 
