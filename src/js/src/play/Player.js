@@ -138,15 +138,15 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
       relY = this.aabb.y - aabb.y;
       if (Math.abs(relX) > Math.abs(relY)) {
         if (relX > 0) {
-          this.x = aabb.getRight() + this.aabb.hw;
+          this.x = aabb.getRight() + this.aabb.hw + 1;
         } else {
-          this.x = aabb.getLeft() - this.aabb.hw;
+          this.x = aabb.getLeft() - this.aabb.hw - 1;
         }
       } else {
         if (relY > 0) {
-          this.y = aabb.getBottom() + this.aabb.hh;
+          this.y = aabb.getBottom() + this.aabb.hh + 1;
         } else {
-          this.y = aabb.getTop() - this.aabb.hh;
+          this.y = aabb.getTop() - this.aabb.hh - 1;
         }
       }
       this.updateAABB();
