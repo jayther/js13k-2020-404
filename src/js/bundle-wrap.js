@@ -143,6 +143,54 @@ var JMath = {
   },
   angleFromVec: function (v) {
     return Math.atan2(v.y, v.x);
+  },
+  lengthFromVec: function (v) {
+    return Math.sqrt(v.x * v.x + v.y * v.y);
+  },
+  rotateVec: function (v, a) {
+    var rotX = Math.cos(a);
+    var rotY = Math.sin(a);
+    // matrix mult
+    return {
+      x: v.x * rotX - v.y * rotY,
+      y: v.x * rotY + v.y * rotX
+    };
+  },
+  rotateRectAroundPoint: function (rect, point, angle) {
+    if (angle === 0) {
+      return {
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom
+      };
+    }
+    var w = rect.right - rect.left,
+      h = rect.bottom - rect.top,
+      newLeftTop, t, rad = angle / 360 * Math.PI * 2;
+    
+    if (angle === 90 || angle === 270) {
+      t = w;
+      w = h;
+      h = t;
+    }
+    
+    if (angle === 90) {
+      newLeftTop = { x: rect.left, y: rect.bottom };
+    } else if (angle === 180) {
+      newLeftTop = { x: rect.right, y: rect.bottom };
+    } else {
+      newLeftTop = { x: rect.right, y: rect.top };
+    }
+    newLeftTop.x -= point.x;
+    newLeftTop.y -= point.y;
+    newLeftTop = JMath.rotateVec(newLeftTop, rad);
+    return {
+      left: point.x + newLeftTop.x,
+      top: point.y + newLeftTop.y,
+      right: point.x + newLeftTop.x + w,
+      bottom: point.y + newLeftTop.y + h
+    };
   }
 };
 
@@ -200,6 +248,27 @@ AABB.prototype.grow = function (amt) {
   this.hw += amt;
   this.hh += amt;
   return this;
+};
+AABB.prototype.rotateAroundPoint = function (point, angle) {
+  var t, rad = angle / 360 * Math.PI * 2;
+  if (angle === 90 || angle === 270) {
+    t = this.hw;
+    this.hw = this.hh;
+    this.hh = t;
+  }
+
+  var n = JMath.rotateVec({ x: this.x - point.x, y: this.y - point.y }, rad);
+  this.x = point.x + n.x;
+  this.y = point.y + n.y;
+  return this;
+};
+AABB.prototype.toRect = function () {
+  return {
+    left: this.x - this.hw,
+    top: this.y - this.hh,
+    right: this.x + this.hw,
+    bottom: this.y + this.hh
+  };
 };
 
 function Anim(settings) {
@@ -570,6 +639,8 @@ World.privateDesk = {
   depth: 20,
   chairSize: 20
 };
+
+World.mailAabbPadding = 5;
 
 World.prototype = extendPrototype(DisplayContainer.prototype, {
   generate: function (width, height) {
@@ -994,6 +1065,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       }
       room.type = Random.pick(roomTypePool);
       room.furniture = [];
+      room.collisionAabbs = [];
       if (room.type === World.roomTypes.lobby) {
         this.lobbies.push(room);
       }
@@ -1002,68 +1074,96 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
   },
   createDesk: function (x, y, facing, deskSettings) {
     var deskHalfWidth = deskSettings.width / 2;
+    var deskHalfDepth = deskSettings.depth / 2;
     var chairHalfSize = deskSettings.chairSize / 2;
-    var deskId = this.deskIdPool++;
+    var desks = [], collisionAabbs, mailAabbs, displayItems, a, b, angle, i, rad;
 
-    // collision rect for both desk and chair
+    // initially facing right, with (x, y) at the center back of desk
+    collisionAabbs = [
+      new AABB(x - deskHalfDepth, y, deskHalfDepth, deskHalfWidth)
+    ];
+    if (deskSettings.type === World.furnitureTypes.doubleDesk) {
+      var deskActualHalfWidth = (deskSettings.width - deskSettings.spacing) / 2 / 2;
+      a = new AABB(
+        x - deskHalfDepth, y - deskActualHalfWidth - deskSettings.spacing / 2,
+        deskHalfDepth, deskActualHalfWidth
+      );
+      b = new AABB(
+        x - deskHalfDepth, y + deskActualHalfWidth + deskSettings.spacing / 2,
+        deskHalfDepth, deskActualHalfWidth
+      );
+      mailAabbs = [a.copy().grow(World.mailAabbPadding), b.copy().grow(World.mailAabbPadding)];
+      displayItems = [
+        new DisplayRect({
+          x: a.x - a.hw,
+          y: a.y - a.hh,
+          w: a.hw * 2,
+          h: a.hh * 2,
+          color: '#990000',
+          anchorX: a.x + a.hw,
+          anchorY: a.y
+        }),
+        new DisplayRect({
+          x: b.x - b.hw,
+          y: b.y - b.hh,
+          w: b.hw * 2,
+          h: b.hh * 2,
+          color: '#990000',
+          anchorX: b.x + b.hw,
+          anchorY: b.y
+        })
+      ];
+    } else {
+      a = collisionAabbs[0].copy();
+      mailAabbs = [a.copy().grow(World.mailAabbPadding)];
+      displayItems = [
+        new DisplayRect({
+          x: a.x - a.hw,
+          y: a.y - a.hh,
+          w: a.hw * 2,
+          h: a.hh * 2,
+          color: '#990000',
+          anchorX: a.x + a.hw,
+          anchorY: a.y
+        })
+      ];
+    }
     if (facing === World.sides.left) {
-      return [
-        {
-          type: deskSettings.type,
-          id: deskId,
-          left: x,
-          top: y - deskHalfWidth,
-          right: x + deskSettings.depth + chairHalfSize,
-          bottom: y + deskHalfWidth,
-          facing: facing
-        }
-      ];
+      angle = 180;
+    } else if (facing === World.sides.top) {
+      angle = 270;
+    } else if (facing === World.sides.right) {
+      angle = 0;
+    } else {
+      angle = 90;
     }
-    if (facing === World.sides.top) {
-      return [
-        {
-          type: deskSettings.type,
-          id: deskId,
-          left: x - deskHalfWidth,
-          top: y,
-          right: x + deskHalfWidth,
-          bottom: y + deskSettings.depth + chairHalfSize,
-          facing: facing
-        }
-      ];
-    }
-    if (facing == World.sides.right) {
-      return [
-        {
-          type: deskSettings.type,
-          id: deskId,
-          left: x - deskSettings.depth - chairHalfSize,
-          top: y - deskHalfWidth,
-          right: x,
-          bottom: y + deskHalfWidth,
-          facing: facing
-        }
-      ];
-    }
-    if (facing == World.sides.bottom) {
-      return [
-        {
-          type: deskSettings.type,
-          id: deskId,
-          left: x - deskHalfWidth,
-          top: y - deskSettings.depth - chairHalfSize,
-          right: x + deskHalfWidth,
-          bottom: y,
-          facing: facing
-        }
-      ];
-    }
-    return [];
+    rad = angle / 360 * Math.PI * 2;
+
+    collisionAabbs.forEach(function (aabb) {
+      // aabb.rotateAroundPoint({ x: x, y: y }, angle);
+    });
+    mailAabbs.forEach(function (aabb, index) {
+      // aabb.rotateAroundPoint({ x: x, y: y }, angle);
+      desks.push({
+        id: this.deskIdPool++,
+        type: deskSettings.type,
+        mailAabb: aabb,
+        displayItems: [displayItems[index]]
+      });
+    }, this);
+    displayItems.forEach(function (item) {
+      item.angle = rad;
+    });
+
+    return [
+      collisionAabbs,
+      desks
+    ];
   },
   generateRoomLayout: function (room) {
     // TODO
     // using pixel units
-    var furniture = [];
+    var collisionDesksPair = null;
     var bounds = {
       left: room.left * this.cellSize,
       top: room.top * this.cellSize,
@@ -1087,7 +1187,12 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     }
 
     if (room.type === World.roomTypes.officeOpen) {
-      furniture = this.generateOpenOffice(bounds);
+      collisionDesksPair = this.generateOpenOffice(bounds);
+    }
+
+    if (collisionDesksPair) {
+      room.collisionAabbs = collisionDesksPair[0];
+      room.furniture = collisionDesksPair[1];
     }
 
     // debug placeable area
@@ -1100,64 +1205,10 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     });
     this.addChild(boundRect);
 
-    // place desks
-    furniture.forEach(function (item) {
-      // TODO replace with image of desk
-      var rect;
-      item.displayRects = [];
-      if (item.type === World.furnitureTypes.desk) {
-        rect = new DisplayRect({
-          x: item.left,
-          y: item.top,
-          w: item.right - item.left,
-          h: item.bottom - item.top,
-          color: '#990000'
-        });
-        this.addChild(rect);
-        item.displayRects.push(rect);
-      } else if (item.type === World.furnitureTypes.doubleDesk) {
-        var deskWidth = (World.openDeskDouble.width - World.openDeskDouble.spacing) / 2;
-        if (item.facing & (World.sides.left | World.sides.right)) {
-          // vertical
-          rect = new DisplayRect({
-            x: item.left,
-            y: item.top,
-            w: item.right - item.left,
-            h: deskWidth
-          });
-          this.addChild(rect);
-          item.displayRects.push(rect);
-          rect = new DisplayRect({
-            x: item.left,
-            y: item.top + deskWidth + World.openDeskDouble.spacing,
-            w: item.right - item.left,
-            h: deskWidth
-          });
-          this.addChild(rect);
-          item.displayRects.push(rect);
-        } else {
-          // horizontal
-          rect = new DisplayRect({
-            x: item.left,
-            y: item.top,
-            w: deskWidth,
-            h: item.bottom - item.top
-          });
-          this.addChild(rect);
-          item.displayRects.push(rect);
-          rect = new DisplayRect({
-            x: item.left + deskWidth + World.openDeskDouble.spacing,
-            y: item.top,
-            w: deskWidth,
-            h: item.bottom - item.top
-          });
-          this.addChild(rect);
-          item.displayRects.push(rect);
-        }
-      }
-      var aabb = AABB.fromRect(item);
-      item.aabb = aabb;
-      room.furniture.push(item);
+    room.furniture.forEach(function (desk) {
+      desk.displayItems.forEach(function (item) {
+        this.addChild(item);
+      }, this);
     }, this);
 
     var x = (room.left + room.right) / 2 * this.cellSize,
@@ -1428,20 +1479,26 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
 
     // collide with furniture
     if (this.collideWithFurniture) {
-      if (cell && cell.room && cell.room.furniture) {
-        var furniture = cell.room.furniture;
-        for (i = 0; i < furniture.length; i += 1) {
-          // mail time
-          if (furniture[i].type === World.furnitureTypes.desk) {
-            var desk = furniture[i];
-            if (desk.needsMail && desk.mailAabb.intersectsWith(this.aabb)) {
-              desk.needsMail = false;
-              this.scene.mailDelivered(desk);
+      if (cell && cell.room) {
+        if (cell.room.collisionAabbs) {
+          var aabbs = cell.room.collisionAabbs;
+          for (i = 0; i < aabbs.length; i += 1) {
+            // collide with collisionAAbbs
+            this.maybeCollideWith(aabbs[i]);
+          }
+        }
+        if (cell.room.furniture) {
+          var furniture = cell.room.furniture;
+          for (i = 0; i < furniture.length; i += 1) {
+            // mail time
+            if (furniture[i].type === World.furnitureTypes.desk || furniture[i].type === World.furnitureTypes.desk) {
+              var desk = furniture[i];
+              if (desk.needsMail && desk.mailAabb.intersectsWith(this.aabb)) {
+                desk.needsMail = false;
+                this.scene.mailDelivered(desk);
+              }
             }
           }
-
-          // collide with furniture
-          this.maybeCollideWith(furniture[i].aabb);
         }
       }
     }
@@ -1702,23 +1759,24 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
 
     // debug
     this.mailableDesks.forEach(function (desk) {
-      desk.displayRects.forEach(function (rect) {
+      desk.displayItems.forEach(function (rect) {
         rect.color = 'white';
       });
     });
     this.redirectedFromDesks.forEach(function (desk) {
-      desk.displayRects.forEach(function (rect) {
+      desk.displayItems.forEach(function (rect) {
         rect.color = 'blue';
       });
     });
     this.redirectedToDesks.forEach(function (desk) {
-      desk.displayRects.forEach(function (rect) {
+      desk.displayItems.forEach(function (rect) {
         rect.color = 'gray';
       });
     });
   },
   mailDelivered: function (desk) {
-    desk.displayRects.forEach(function (rect) {
+    // debug
+    desk.displayItems.forEach(function (rect) {
       rect.color = 'red';
     });
     var envelope = new DisplayRect({
@@ -1736,7 +1794,7 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
       object: envelope,
       property: 'x',
       from: this.player.x,
-      to: desk.aabb.x,
+      to: desk.mailAabb.x,
       duration: 0.5,
       timeFunction: Anim.easingFunctions.easeInCubic
     });
@@ -1744,7 +1802,7 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
       object: envelope,
       property: 'y',
       from: this.player.y,
-      to: desk.aabb.y,
+      to: desk.mailAabb.y,
       duration: 0.5,
       timeFunction: Anim.easingFunctions.easeInCubic,
       onEnd: function () {
@@ -1772,9 +1830,6 @@ function reduceRoomsToDesks(accumulator, room) {
 
 function initMailableDesk(desk) {
   desk.needsMail = true;
-  var mailAabb = desk.aabb.copy();
-  mailAabb.grow(5);
-  desk.mailAabb = mailAabb;
 }
 
 function createPointer(color) {

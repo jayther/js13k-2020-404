@@ -53,3 +53,24 @@ AABB.prototype.grow = function (amt) {
   this.hh += amt;
   return this;
 };
+AABB.prototype.rotateAroundPoint = function (point, angle) {
+  var t, rad = angle / 360 * Math.PI * 2;
+  if (angle === 90 || angle === 270) {
+    t = this.hw;
+    this.hw = this.hh;
+    this.hh = t;
+  }
+
+  var n = JMath.rotateVec({ x: this.x - point.x, y: this.y - point.y }, rad);
+  this.x = point.x + n.x;
+  this.y = point.y + n.y;
+  return this;
+};
+AABB.prototype.toRect = function () {
+  return {
+    left: this.x - this.hw,
+    top: this.y - this.hh,
+    right: this.x + this.hw,
+    bottom: this.y + this.hh
+  };
+};

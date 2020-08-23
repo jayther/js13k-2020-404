@@ -181,23 +181,24 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
 
     // debug
     this.mailableDesks.forEach(function (desk) {
-      desk.displayRects.forEach(function (rect) {
+      desk.displayItems.forEach(function (rect) {
         rect.color = 'white';
       });
     });
     this.redirectedFromDesks.forEach(function (desk) {
-      desk.displayRects.forEach(function (rect) {
+      desk.displayItems.forEach(function (rect) {
         rect.color = 'blue';
       });
     });
     this.redirectedToDesks.forEach(function (desk) {
-      desk.displayRects.forEach(function (rect) {
+      desk.displayItems.forEach(function (rect) {
         rect.color = 'gray';
       });
     });
   },
   mailDelivered: function (desk) {
-    desk.displayRects.forEach(function (rect) {
+    // debug
+    desk.displayItems.forEach(function (rect) {
       rect.color = 'red';
     });
     var envelope = new DisplayRect({
@@ -215,7 +216,7 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
       object: envelope,
       property: 'x',
       from: this.player.x,
-      to: desk.aabb.x,
+      to: desk.mailAabb.x,
       duration: 0.5,
       timeFunction: Anim.easingFunctions.easeInCubic
     });
@@ -223,7 +224,7 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
       object: envelope,
       property: 'y',
       from: this.player.y,
-      to: desk.aabb.y,
+      to: desk.mailAabb.y,
       duration: 0.5,
       timeFunction: Anim.easingFunctions.easeInCubic,
       onEnd: function () {
@@ -251,9 +252,6 @@ function reduceRoomsToDesks(accumulator, room) {
 
 function initMailableDesk(desk) {
   desk.needsMail = true;
-  var mailAabb = desk.aabb.copy();
-  mailAabb.grow(5);
-  desk.mailAabb = mailAabb;
 }
 
 function createPointer(color) {

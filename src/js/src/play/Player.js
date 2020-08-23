@@ -86,20 +86,26 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
 
     // collide with furniture
     if (this.collideWithFurniture) {
-      if (cell && cell.room && cell.room.furniture) {
-        var furniture = cell.room.furniture;
-        for (i = 0; i < furniture.length; i += 1) {
-          // mail time
-          if (furniture[i].type === World.furnitureTypes.desk) {
-            var desk = furniture[i];
-            if (desk.needsMail && desk.mailAabb.intersectsWith(this.aabb)) {
-              desk.needsMail = false;
-              this.scene.mailDelivered(desk);
+      if (cell && cell.room) {
+        if (cell.room.collisionAabbs) {
+          var aabbs = cell.room.collisionAabbs;
+          for (i = 0; i < aabbs.length; i += 1) {
+            // collide with collisionAAbbs
+            this.maybeCollideWith(aabbs[i]);
+          }
+        }
+        if (cell.room.furniture) {
+          var furniture = cell.room.furniture;
+          for (i = 0; i < furniture.length; i += 1) {
+            // mail time
+            if (furniture[i].type === World.furnitureTypes.desk || furniture[i].type === World.furnitureTypes.desk) {
+              var desk = furniture[i];
+              if (desk.needsMail && desk.mailAabb.intersectsWith(this.aabb)) {
+                desk.needsMail = false;
+                this.scene.mailDelivered(desk);
+              }
             }
           }
-
-          // collide with furniture
-          this.maybeCollideWith(furniture[i].aabb);
         }
       }
     }
