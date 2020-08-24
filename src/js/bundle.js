@@ -556,6 +556,25 @@ CachedContainer.prototype = extendPrototype(DisplayContainer.prototype, {
   }
 });
 
+function Room(id, chunk) {
+  this.id = id;
+  this.left = chunk.left;
+  this.top = chunk.top;
+  this.right = chunk.right;
+  this.bottom = chunk.bottom;
+
+  this.type = 0;
+  this.furniture = [];
+  this.collisionAabbs = [];
+  this.connected = false;
+  this.fog = null;
+  this.doorWallFlags = 0;
+}
+
+Room.prototype = {
+
+};
+
 function Desk(type, x, y, w, h, chairSize) {
   this.id = Desk.poolId++;
   this.type = type;
@@ -733,6 +752,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       splitPos,
       chunkA,
       chunkB,
+      room,
       hallway,
       upperBoundSide,
       lowerBoundSide,
@@ -888,15 +908,15 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         this.setPos(chunk.left - 1, y, World.cellTypes.outerWall);
         this.setPos(chunk.right, y, World.cellTypes.outerWall);
       }
+      room = new Room(this.roomIdPool++, chunk);
       // set room cells as room ground
       for (x = chunk.left; x < chunk.right; x += 1) {
         for (y = chunk.top; y < chunk.bottom; y += 1) {
-          this.setPos(x, y, World.cellTypes.roomGround, chunk);
+          this.setPos(x, y, World.cellTypes.roomGround, room);
         }
       }
       // add to islandRooms
-      chunk.connected = false;
-      islandRooms.push(chunk);
+      islandRooms.push(room);
     }
     
     // connect rooms
@@ -1002,7 +1022,6 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         this.setPos(x, y, World.cellTypes.door);
         this.setPos(x2, y2, World.cellTypes.door);
         chunk.connected = true;
-        chunk.id = this.roomIdPool++;
         this.rooms.push(chunk);
         // which walls have doors
         if (!chunk.doorWallFlags) {
@@ -1074,7 +1093,6 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     var roomPool = this.rooms.slice();
     var room = Random.pickAndRemove(roomPool);
     room.type = World.roomTypes.mailRoom;
-    room.furniture = [];
     this.generateRoomLayout(room);
     this.startingRoom = room;
 
@@ -1100,8 +1118,6 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         roomTypePool.push(World.roomTypes.lobby);
       }
       room.type = Random.pick(roomTypePool);
-      room.furniture = [];
-      room.collisionAabbs = [];
       if (room.type === World.roomTypes.lobby) {
         this.lobbies.push(room);
       }

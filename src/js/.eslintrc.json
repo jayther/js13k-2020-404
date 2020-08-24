@@ -24,6 +24,7 @@
     "DisplayPath": "writable",
     "Display": "writable",
     "CachedContainer": "writable",
+    "Room": "writable",
     "World": "writable",
     "Player": "writable",
     "Desk": "writable",

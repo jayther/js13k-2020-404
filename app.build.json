@@ -68,6 +68,7 @@
         "src/js/src/graphics/DisplayPath.js",
         "src/js/src/graphics/CachedContainer.js",
         
+        "src/js/src/play/Room.js",
         "src/js/src/play/Desk.js",
         "src/js/src/play/World.js",
         "src/js/src/play/Player.js",
