@@ -34,5 +34,12 @@ Desk.prototype = {
       item.angle = rad;
     });
     this.mailAabb.rotateAroundPoint(point, angle);
+  },
+  mailDelivered: function () {
+    this.needsMail = false;
+    // debug
+    this.displayItems.forEach(function (rect) {
+      rect.color = 'red';
+    });
   }
 };

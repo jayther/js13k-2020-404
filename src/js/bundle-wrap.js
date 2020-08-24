@@ -613,6 +613,13 @@ Desk.prototype = {
       item.angle = rad;
     });
     this.mailAabb.rotateAroundPoint(point, angle);
+  },
+  mailDelivered: function () {
+    this.needsMail = false;
+    // debug
+    this.displayItems.forEach(function (rect) {
+      rect.color = 'red';
+    });
   }
 };
 
@@ -1523,7 +1530,7 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
             if (furniture[i].type === World.furnitureTypes.desk || furniture[i].type === World.furnitureTypes.doubleDesk) {
               var desk = furniture[i];
               if (desk.needsMail && desk.mailAabb.intersectsWith(this.aabb)) {
-                desk.needsMail = false;
+                desk.mailDelivered();
                 this.scene.mailDelivered(desk);
               }
             }
@@ -1804,10 +1811,6 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
     });
   },
   mailDelivered: function (desk) {
-    // debug
-    desk.displayItems.forEach(function (rect) {
-      rect.color = 'red';
-    });
     var envelope = new DisplayRect({
       x: this.player.x,
       y: this.player.y,

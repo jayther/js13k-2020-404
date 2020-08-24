@@ -197,10 +197,6 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
     });
   },
   mailDelivered: function (desk) {
-    // debug
-    desk.displayItems.forEach(function (rect) {
-      rect.color = 'red';
-    });
     var envelope = new DisplayRect({
       x: this.player.x,
       y: this.player.y,

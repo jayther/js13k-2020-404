@@ -101,7 +101,7 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
             if (furniture[i].type === World.furnitureTypes.desk || furniture[i].type === World.furnitureTypes.doubleDesk) {
               var desk = furniture[i];
               if (desk.needsMail && desk.mailAabb.intersectsWith(this.aabb)) {
-                desk.needsMail = false;
+                desk.mailDelivered();
                 this.scene.mailDelivered(desk);
               }
             }
