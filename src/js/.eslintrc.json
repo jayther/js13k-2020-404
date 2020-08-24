@@ -26,6 +26,7 @@
     "CachedContainer": "writable",
     "World": "writable",
     "Player": "writable",
+    "Desk": "writable",
     "Scene": "writable",
     "PlayScene": "writable",
     "PreloadScene": "writable",

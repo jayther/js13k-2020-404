@@ -516,51 +516,30 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     var deskHalfWidth = deskSettings.width / 2;
     var deskHalfDepth = deskSettings.depth / 2;
     var chairHalfSize = deskSettings.chairSize / 2;
-    var desks = [], collisionAabbs, mailAabbs, displayItems, a, b, angle, i, rad;
+    var desks = [], collisionAabbs, angle;
 
     // initially facing right, with (x, y) at the center back of desk
     collisionAabbs = [
-      new AABB(x - deskHalfDepth, y, deskHalfDepth, deskHalfWidth)
+      new AABB(x - deskHalfDepth - chairHalfSize / 2, y, deskHalfDepth + chairHalfSize / 2, deskHalfWidth)
     ];
     if (deskSettings.type === World.furnitureTypes.doubleDesk) {
-      var deskActualHalfWidth = (deskSettings.width - deskSettings.spacing) / 2 / 2;
-      a = new AABB(
-        x - deskHalfDepth, y - deskActualHalfWidth - deskSettings.spacing / 2,
-        deskHalfDepth, deskActualHalfWidth
-      );
-      b = new AABB(
-        x - deskHalfDepth, y + deskActualHalfWidth + deskSettings.spacing / 2,
-        deskHalfDepth, deskActualHalfWidth
-      );
-      mailAabbs = [a.copy().grow(World.mailAabbPadding), b.copy().grow(World.mailAabbPadding)];
-      displayItems = [
-        new DisplayRect({
-          x: a.x - a.hw,
-          y: a.y - a.hh,
-          w: a.hw * 2,
-          h: a.hh * 2,
-          color: '#990000'
-        }),
-        new DisplayRect({
-          x: b.x - b.hw,
-          y: b.y - b.hh,
-          w: b.hw * 2,
-          h: b.hh * 2,
-          color: '#990000'
-        })
-      ];
+      var deskActualWidth = (deskSettings.width - deskSettings.spacing) / 2;
+      desks.push(new Desk(
+        deskSettings.type, x - deskHalfDepth, y - deskActualWidth / 2 - deskSettings.spacing / 2,
+        deskSettings.depth, deskActualWidth,
+        deskSettings.chairSize
+      ));
+      desks.push(new Desk(
+        deskSettings.type, x - deskHalfDepth, y + deskActualWidth / 2 + deskSettings.spacing / 2,
+        deskSettings.depth, deskActualWidth,
+        deskSettings.chairSize
+      ));
     } else {
-      a = collisionAabbs[0].copy();
-      mailAabbs = [a.copy().grow(World.mailAabbPadding)];
-      displayItems = [
-        new DisplayRect({
-          x: a.x - a.hw,
-          y: a.y - a.hh,
-          w: a.hw * 2,
-          h: a.hh * 2,
-          color: '#990000'
-        })
-      ];
+      desks.push(new Desk(
+        deskSettings.type, x - deskHalfDepth, y,
+        deskSettings.depth, deskSettings.width,
+        deskSettings.chairSize
+      ));
     }
     if (facing === World.sides.left) {
       angle = 180;
@@ -571,25 +550,12 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     } else {
       angle = 90;
     }
-    rad = angle / 360 * Math.PI * 2;
 
     collisionAabbs.forEach(function (aabb) {
       aabb.rotateAroundPoint({ x: x, y: y }, angle);
     });
-    mailAabbs.forEach(function (aabb, index) {
-      aabb.rotateAroundPoint({ x: x, y: y }, angle);
-      desks.push({
-        id: this.deskIdPool++,
-        type: deskSettings.type,
-        mailAabb: aabb,
-        displayItems: [displayItems[index]]
-      });
-    }, this);
-    displayItems.forEach(function (item) {
-      var pos = JMath.rotateVec({ x: item.x - x, y: item.y - y}, rad);
-      item.x = x + pos.x;
-      item.y = y + pos.y;
-      item.angle = rad;
+    desks.forEach(function (desk) {
+      desk.rotateAround({ x: x, y: y }, angle);
     });
 
     return [
