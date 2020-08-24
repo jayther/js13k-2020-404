@@ -1099,18 +1099,14 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
           y: a.y - a.hh,
           w: a.hw * 2,
           h: a.hh * 2,
-          color: '#990000',
-          anchorX: a.x + a.hw,
-          anchorY: a.y
+          color: '#990000'
         }),
         new DisplayRect({
           x: b.x - b.hw,
           y: b.y - b.hh,
           w: b.hw * 2,
           h: b.hh * 2,
-          color: '#990000',
-          anchorX: b.x + b.hw,
-          anchorY: b.y
+          color: '#990000'
         })
       ];
     } else {
@@ -1122,9 +1118,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
           y: a.y - a.hh,
           w: a.hw * 2,
           h: a.hh * 2,
-          color: '#990000',
-          anchorX: a.x + a.hw,
-          anchorY: a.y
+          color: '#990000'
         })
       ];
     }
@@ -1140,10 +1134,10 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     rad = angle / 360 * Math.PI * 2;
 
     collisionAabbs.forEach(function (aabb) {
-      // aabb.rotateAroundPoint({ x: x, y: y }, angle);
+      aabb.rotateAroundPoint({ x: x, y: y }, angle);
     });
     mailAabbs.forEach(function (aabb, index) {
-      // aabb.rotateAroundPoint({ x: x, y: y }, angle);
+      aabb.rotateAroundPoint({ x: x, y: y }, angle);
       desks.push({
         id: this.deskIdPool++,
         type: deskSettings.type,
@@ -1152,6 +1146,9 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       });
     }, this);
     displayItems.forEach(function (item) {
+      var pos = JMath.rotateVec({ x: item.x - x, y: item.y - y}, rad);
+      item.x = x + pos.x;
+      item.y = y + pos.y;
       item.angle = rad;
     });
 
@@ -1231,7 +1228,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     var boundsWidth = bounds.right - bounds.left,
       boundsHeight = bounds.bottom - bounds.top;
     
-    var furniture = [];
+    var collisionAabbs = [], furniture = [];
     var pair, deskSettings = Random.pick([
       World.openDesk,
       World.openDeskDouble
@@ -1252,23 +1249,29 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         for (i = 0; i < maxDesks; i += 1) {
           deskX = bounds.left + i * deskInterval + facing * (deskSettings.depth + chairHalfSize) + deskFrontOffset;
           pair = this.createDesk(deskX, deskY, facing ? World.sides.right : World.sides.left, deskSettings);
-          furniture = furniture.concat(pair);
+          collisionAabbs = collisionAabbs.concat(pair[0]);
+          furniture = furniture.concat(pair[1]);
         }
         deskY += deskSpacing + deskSettings.width;
       }
       var topMost = null, bottomMost = null;
-      furniture.forEach(function (item) {
-        if (!topMost || item.top < topMost.top) {
+      collisionAabbs.forEach(function (item) {
+        if (!topMost || item.y < topMost.y) {
           topMost = item;
         }
-        if (!bottomMost || item.bottom > bottomMost.bottom) {
+        if (!bottomMost || item.y > bottomMost.y) {
           bottomMost = item;
         }
       });
-      deskSideOffset = Math.random() * (boundsHeight - (bottomMost.bottom - topMost.top));
+      deskSideOffset = Math.random() * (boundsHeight - ((bottomMost.y + bottomMost.hh) - (topMost.y - topMost.hh)));
+      collisionAabbs.forEach(function (aabb) {
+        aabb.y += deskSideOffset;
+      });
       furniture.forEach(function (item) {
-        item.top += deskSideOffset;
-        item.bottom += deskSideOffset;
+        item.displayItems.forEach(function (di) {
+          di.y += deskSideOffset;
+        });
+        item.mailAabb.y += deskSideOffset;
       });
     } else {
       // desks are horizontal
@@ -1280,27 +1283,33 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         for (i = 0; i < maxDesks; i += 1) {
           deskY = bounds.top + i * deskInterval + facing * (deskSettings.depth + chairHalfSize) + deskFrontOffset;
           pair = this.createDesk(deskX, deskY, facing ? World.sides.bottom : World.sides.top, deskSettings);
-          furniture = furniture.concat(pair);
+          collisionAabbs = collisionAabbs.concat(pair[0]);
+          furniture = furniture.concat(pair[1]);
         }
         deskX += deskSpacing + deskSettings.width;
       }
       var leftMost = null, rightMost = null;
-      furniture.forEach(function (item) {
-        if (!leftMost || item.left < leftMost.left) {
+      collisionAabbs.forEach(function (item) {
+        if (!leftMost || item.x < leftMost.x) {
           leftMost = item;
         }
-        if (!rightMost || item.right > rightMost.right) {
+        if (!rightMost || item.x > rightMost.x) {
           rightMost = item;
         }
       });
-      deskSideOffset = Math.random() * (boundsWidth - (rightMost.right - leftMost.left));
+      deskSideOffset = Math.random() * (boundsWidth - ((rightMost.x + rightMost.hw) - (leftMost.x - leftMost.hw)));
+      collisionAabbs.forEach(function (aabb) {
+        aabb.x += deskSideOffset;
+      });
       furniture.forEach(function (item) {
-        item.left += deskSideOffset;
-        item.right += deskSideOffset;
+        item.displayItems.forEach(function (di) {
+          di.x += deskSideOffset;
+        });
+        item.mailAabb.x += deskSideOffset;
       });
     }
 
-    return furniture;
+    return [collisionAabbs, furniture];
   },
   createCell: function (x, y, type, room) {
     var color = null,
@@ -1491,7 +1500,7 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
           var furniture = cell.room.furniture;
           for (i = 0; i < furniture.length; i += 1) {
             // mail time
-            if (furniture[i].type === World.furnitureTypes.desk || furniture[i].type === World.furnitureTypes.desk) {
+            if (furniture[i].type === World.furnitureTypes.desk || furniture[i].type === World.furnitureTypes.doubleDesk) {
               var desk = furniture[i];
               if (desk.needsMail && desk.mailAabb.intersectsWith(this.aabb)) {
                 desk.needsMail = false;

@@ -98,7 +98,7 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
           var furniture = cell.room.furniture;
           for (i = 0; i < furniture.length; i += 1) {
             // mail time
-            if (furniture[i].type === World.furnitureTypes.desk || furniture[i].type === World.furnitureTypes.desk) {
+            if (furniture[i].type === World.furnitureTypes.desk || furniture[i].type === World.furnitureTypes.doubleDesk) {
               var desk = furniture[i];
               if (desk.needsMail && desk.mailAabb.intersectsWith(this.aabb)) {
                 desk.needsMail = false;
