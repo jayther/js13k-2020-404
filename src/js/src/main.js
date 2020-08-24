@@ -9,6 +9,7 @@ function Main(){
   this.context = canvas.getContext('2d');
   this.context.font = '16px Arial'; // global font
   this.animManager = new AnimManager();
+  AnimManager.singleton = this.animManager;
   this.scene = new PreloadScene(this);
   this.time = 0;
   

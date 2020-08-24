@@ -10,6 +10,7 @@ function DisplayItem(options) {
     anchorX: 0,
     anchorY: 0
   }, options || {});
+  this.parent = null;
   this.x = opts.x;
   this.y = opts.y;
   this.scaleX = opts.scaleX;

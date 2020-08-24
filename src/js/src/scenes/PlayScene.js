@@ -195,48 +195,6 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
         rect.color = 'gray';
       });
     });
-  },
-  mailDelivered: function (desk) {
-    var envelope = new DisplayRect({
-      x: this.player.x,
-      y: this.player.y,
-      w: 20,
-      h: 10,
-      color: '#eeeeee',
-      anchorX: 10,
-      anchorY: 5,
-      angle: Random.range(0, Math.PI * 2)
-    });
-    this.world.addChild(envelope);
-    var animX = new Anim({
-      object: envelope,
-      property: 'x',
-      from: this.player.x,
-      to: desk.mailAabb.x,
-      duration: 0.5,
-      timeFunction: Anim.easingFunctions.easeInCubic
-    });
-    var animY = new Anim({
-      object: envelope,
-      property: 'y',
-      from: this.player.y,
-      to: desk.mailAabb.y,
-      duration: 0.5,
-      timeFunction: Anim.easingFunctions.easeInCubic,
-      onEnd: function () {
-        this.world.removeChild(envelope);
-      }.bind(this)
-    });
-    var animAngle = new Anim({
-      object: envelope,
-      property: 'angle',
-      from: envelope.angle,
-      to: envelope.angle + Random.range(-Math.PI, Math.PI),
-      duration: 0.5
-    });
-    this.main.animManager.add(animX);
-    this.main.animManager.add(animY);
-    this.main.animManager.add(animAngle);
   }
 });
 

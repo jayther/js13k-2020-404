@@ -5,12 +5,14 @@ function DisplayContainer(options) {
 DisplayContainer.prototype = extendPrototype(DisplayItem.prototype, {
   addChild: function (child) {
     this.children.push(child);
+    child.parent = this;
     return this;
   },
   removeChild: function (child) {
     var i = this.children.indexOf(child);
     if (i >= 0) {
       this.children.splice(i, 1);
+      child.parent = null;
     }
     return this;
   },

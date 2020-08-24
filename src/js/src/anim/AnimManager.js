@@ -3,6 +3,7 @@ function AnimManager() {
   this.time = 0;
   this.anims = [];
 }
+AnimManager.singleton = null;
 AnimManager.prototype = {
   add: function (anim) {
     anim.start(this.time);

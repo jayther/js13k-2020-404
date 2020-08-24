@@ -324,6 +324,7 @@ function AnimManager() {
   this.time = 0;
   this.anims = [];
 }
+AnimManager.singleton = null;
 AnimManager.prototype = {
   add: function (anim) {
     anim.start(this.time);
@@ -366,6 +367,7 @@ function DisplayItem(options) {
     anchorX: 0,
     anchorY: 0
   }, options || {});
+  this.parent = null;
   this.x = opts.x;
   this.y = opts.y;
   this.scaleX = opts.scaleX;
@@ -409,12 +411,14 @@ function DisplayContainer(options) {
 DisplayContainer.prototype = extendPrototype(DisplayItem.prototype, {
   addChild: function (child) {
     this.children.push(child);
+    child.parent = this;
     return this;
   },
   removeChild: function (child) {
     var i = this.children.indexOf(child);
     if (i >= 0) {
       this.children.splice(i, 1);
+      child.parent = null;
     }
     return this;
   },
@@ -597,6 +601,7 @@ function Desk(type, x, y, w, h, chairSize) {
   ]; // TODO
   this.needsMail = false;
   this.redirectTo = -1;
+  this.world = null;
 }
 Desk.poolId = 0;
 Desk.mailAabbPadding = 5;
@@ -612,12 +617,55 @@ Desk.prototype = {
     });
     this.mailAabb.rotateAroundPoint(point, angle);
   },
-  mailDelivered: function () {
+  mailDelivered: function (player) {
     this.needsMail = false;
     // debug
     this.displayItems.forEach(function (rect) {
       rect.color = 'red';
+      if (this.world === null) {
+        this.world = rect.parent;
+      }
+    }, this);
+    var envelope = new DisplayRect({
+      x: player.x,
+      y: player.y,
+      w: 20,
+      h: 10,
+      color: '#eeeeee',
+      anchorX: 10,
+      anchorY: 5,
+      angle: Random.range(0, Math.PI * 2)
     });
+    this.world.addChild(envelope);
+    var animX = new Anim({
+      object: envelope,
+      property: 'x',
+      from: player.x,
+      to: this.mailAabb.x,
+      duration: 0.5,
+      timeFunction: Anim.easingFunctions.easeInCubic
+    });
+    var animY = new Anim({
+      object: envelope,
+      property: 'y',
+      from: player.y,
+      to: this.mailAabb.y,
+      duration: 0.5,
+      timeFunction: Anim.easingFunctions.easeInCubic,
+      onEnd: function () {
+        this.world.removeChild(envelope);
+      }.bind(this)
+    });
+    var animAngle = new Anim({
+      object: envelope,
+      property: 'angle',
+      from: envelope.angle,
+      to: envelope.angle + Random.range(-Math.PI, Math.PI),
+      duration: 0.5
+    });
+    AnimManager.singleton.add(animX);
+    AnimManager.singleton.add(animY);
+    AnimManager.singleton.add(animAngle);
   }
 };
 
@@ -1528,8 +1576,7 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
             if (furniture[i].type === World.furnitureTypes.desk || furniture[i].type === World.furnitureTypes.doubleDesk) {
               var desk = furniture[i];
               if (desk.needsMail && desk.mailAabb.intersectsWith(this.aabb)) {
-                desk.mailDelivered();
-                this.scene.mailDelivered(desk);
+                desk.mailDelivered(this);
               }
             }
           }
@@ -1807,48 +1854,6 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
         rect.color = 'gray';
       });
     });
-  },
-  mailDelivered: function (desk) {
-    var envelope = new DisplayRect({
-      x: this.player.x,
-      y: this.player.y,
-      w: 20,
-      h: 10,
-      color: '#eeeeee',
-      anchorX: 10,
-      anchorY: 5,
-      angle: Random.range(0, Math.PI * 2)
-    });
-    this.world.addChild(envelope);
-    var animX = new Anim({
-      object: envelope,
-      property: 'x',
-      from: this.player.x,
-      to: desk.mailAabb.x,
-      duration: 0.5,
-      timeFunction: Anim.easingFunctions.easeInCubic
-    });
-    var animY = new Anim({
-      object: envelope,
-      property: 'y',
-      from: this.player.y,
-      to: desk.mailAabb.y,
-      duration: 0.5,
-      timeFunction: Anim.easingFunctions.easeInCubic,
-      onEnd: function () {
-        this.world.removeChild(envelope);
-      }.bind(this)
-    });
-    var animAngle = new Anim({
-      object: envelope,
-      property: 'angle',
-      from: envelope.angle,
-      to: envelope.angle + Random.range(-Math.PI, Math.PI),
-      duration: 0.5
-    });
-    this.main.animManager.add(animX);
-    this.main.animManager.add(animY);
-    this.main.animManager.add(animAngle);
   }
 });
 
@@ -1951,6 +1956,7 @@ function Main(){
   this.context = canvas.getContext('2d');
   this.context.font = '16px Arial'; // global font
   this.animManager = new AnimManager();
+  AnimManager.singleton = this.animManager;
   this.scene = new PreloadScene(this);
   this.time = 0;
   
