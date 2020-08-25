@@ -138,7 +138,7 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
       this.currentRoom.fog.alpha = 0;
     }
   },
-  maybeCollideWith(aabb) {
+  maybeCollideWith: function (aabb) {
     var relX, relY;
     if (aabb.intersectsWith(this.aabb)) {
       relX = this.aabb.x - aabb.x;
