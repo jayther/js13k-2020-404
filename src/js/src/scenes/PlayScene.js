@@ -40,8 +40,8 @@ function PlayScene() {
 
   this.generateMailableDesks();
   
-  var seeWholeWorld = true;
-  if (seeWholeWorld) {
+  this.seeWholeWorld = false;
+  if (this.seeWholeWorld) {
     var w = this.world.gridWidth * this.world.cellSize;
     var h = this.world.gridHeight * this.world.cellSize;
     if (w / h > SETTINGS.width / SETTINGS.height) {
@@ -91,33 +91,39 @@ function PlayScene() {
   });
   this.keys.push(this.wKey);
   
-  this.addSteppable(this.player.step.bind(this.player));
-  if (!seeWholeWorld) {
-    this.addSteppable(function (dts) {
-      this.world.x = Math.floor(SETTINGS.width / 2 - player.x * this.world.scaleX);
-      this.world.y = Math.floor(SETTINGS.height / 2 - player.y * this.world.scaleY);
-      var i, room, roomX, roomY, angle, pointer;
-      for (i = 0; i < this.mailableRooms.length; i += 1) {
-        room = this.mailableRooms[i];
-        pointer = this.roomPointerMap[room.id];
-        if (player.currentRoom !== room) {
-          pointer.visible = true;
-          roomX = (room.left + room.right) / 2 * this.world.cellSize;
-          roomY = (room.top + room.bottom) / 2 * this.world.cellSize;
-          angle = Math.atan2(roomY - player.y, roomX - player.x);
-          pointer.angle = angle;
-        } else {
-          pointer.visible = false;
-        }
-      }
-    }.bind(this));
-  }
+  this.addSteppable(this.step.bind(this));
 }
 PlayScene.prototype = extendPrototype(Scene.prototype, {
   destroy: function () {
     this.keys.forEach(function (key) {
       key.destroy();
     });
+  },
+  step: function (dts) {
+    this.player.step(dts);
+    if (!this.seeWholeWorld) {
+      this.world.x = Math.floor(SETTINGS.width / 2 - this.player.x * this.world.scaleX);
+      this.world.y = Math.floor(SETTINGS.height / 2 - this.player.y * this.world.scaleY);
+    }
+    this.updatePointers();
+  },
+  updatePointers: function () {
+    var i, room, roomX, roomY, angle, pointer;
+    for (i = 0; i < this.mailableRooms.length; i += 1) {
+      room = this.mailableRooms[i];
+      if (room.needsMail) {
+        pointer = this.roomPointerMap[room.id];
+        if (this.player.currentRoom !== room) {
+          pointer.visible = true;
+          roomX = (room.left + room.right) / 2 * this.world.cellSize;
+          roomY = (room.top + room.bottom) / 2 * this.world.cellSize;
+          angle = Math.atan2(roomY - this.player.y, roomX - this.player.x);
+          pointer.angle = angle;
+        } else {
+          pointer.visible = false;
+        }
+      }
+    }
   },
   generateMailableDesks: function () {
     // get rooms with desks
@@ -143,6 +149,7 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
       pointer = createPointer('white');
       this.pointerLayer.addChild(pointer);
       this.roomPointerMap[room.id] = pointer;
+      room.needsMail = true;
       mailableRooms.push(room);
     }
 
@@ -168,6 +175,8 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
       redirectTo.redirectFrom = redirectFrom.id;
       redirectedFromDesks.push(redirectFrom);
       redirectedToDesks.push(redirectTo);
+      redirectFrom.redirectDeskCallback = this.deskNeedsRedirect.bind(this);
+      redirectTo.prematureDeliveredCallback = this.deskDeliveredPrematurely.bind(this);
     }
 
     mailableDesks.forEach(initMailableDesk);
@@ -195,6 +204,34 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
         rect.color = 'gray';
       });
     });
+  },
+  deskNeedsRedirect: function (desk) {
+
+    var toDesk = this.redirectedToDesks.find(function (d) {
+      return d.id === desk.redirectTo;
+    });
+    
+    if (!toDesk) { console.log('desk ' + desk.redirectTo + ' not found'); return; } // not found? hehe
+    if (!toDesk.needsMail) { return; } // already delivered
+
+    var index = this.mailableRooms.indexOf(toDesk.room);
+    if (index !== -1) { return; }
+
+    toDesk.room.needsMail = true;
+    this.mailableRooms.push(toDesk.room);
+    var pointer = createPointer('blue');
+    this.roomPointerMap[toDesk.room.id] = pointer;
+    this.pointerLayer.addChild(pointer);
+  },
+  deskDeliveredPrematurely: function (desk) {
+    var fromDesk = this.redirectedFromDesks.find(function (d) {
+      return d.id === desk.redirectFrom;
+    });
+
+    if (!fromDesk) { return; }
+    if (!fromDesk.needsMail) { return; } // already marked for some reason
+    
+    fromDesk.mailDelivered(this.player);
   }
 });
 

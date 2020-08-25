@@ -11,8 +11,8 @@ function Room(id, chunk) {
   this.connected = false;
   this.fog = null;
   this.doorWallFlags = 0;
+  this.needsMail = false;
 }
 
 Room.prototype = {
-
 };

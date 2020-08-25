@@ -421,17 +421,6 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
           opposing >>= 4; // wrap around if more than 4 digits
         }
         chunkA.doorWallFlags |= opposing;
-        // keep track of where doors are
-        // if (!chunk.doors) {
-        //   chunk.doors = [];
-        // }
-        // if (!chunkA.doors) {
-        //   chunkA.doors = [];
-        // }
-        // chunk.doors.push(this.getCell(x, y));
-        // chunk.doors.push(this.getCell(x2, y2));
-        // chunkA.doors.push(this.getCell(x, y));
-        // chunkA.doors.push(this.getCell(x2, y2));
       } else {
         // first pass: this room is an island room
         // second pass: this room is surrounded by other island rooms, add back to stack
@@ -606,6 +595,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     this.addChild(boundRect);
 
     room.furniture.forEach(function (desk) {
+      desk.room = room;
       desk.displayItems.forEach(function (item) {
         this.addChild(item);
       }, this);

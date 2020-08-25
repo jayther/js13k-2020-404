@@ -1,6 +1,7 @@
-function Desk(type, x, y, w, h, chairSize) {
+function Desk(type, x, y, w, h, chairSize, room) {
   this.id = Desk.poolId++;
   this.type = type;
+  this.room = room;
   this.mailAabb = new AABB(x, y, w / 2 + Desk.mailAabbPadding, h / 2 + Desk.mailAabbPadding);
   this.displayItems = [
     new DisplayRect({
@@ -20,7 +21,11 @@ function Desk(type, x, y, w, h, chairSize) {
   ]; // TODO
   this.needsMail = false;
   this.redirectTo = -1;
+  this.redirectFrom = -1;
   this.world = null;
+  this.scene = null;
+  this.redirectDeskCallback = null;
+  this.prematureDeliveredCallback = null;
 }
 Desk.poolId = 0;
 Desk.mailAabbPadding = 5;
@@ -45,45 +50,52 @@ Desk.prototype = {
         this.world = rect.parent;
       }
     }, this);
-    var envelope = new DisplayRect({
-      x: player.x,
-      y: player.y,
-      w: 20,
-      h: 10,
-      color: '#eeeeee',
-      anchorX: 10,
-      anchorY: 5,
-      angle: Random.range(0, Math.PI * 2)
-    });
-    this.world.addChild(envelope);
-    var animX = new Anim({
-      object: envelope,
-      property: 'x',
-      from: player.x,
-      to: this.mailAabb.x,
-      duration: 0.5,
-      timeFunction: Anim.easingFunctions.easeInCubic
-    });
-    var animY = new Anim({
-      object: envelope,
-      property: 'y',
-      from: player.y,
-      to: this.mailAabb.y,
-      duration: 0.5,
-      timeFunction: Anim.easingFunctions.easeInCubic,
-      onEnd: function () {
-        this.world.removeChild(envelope);
-      }.bind(this)
-    });
-    var animAngle = new Anim({
-      object: envelope,
-      property: 'angle',
-      from: envelope.angle,
-      to: envelope.angle + Random.range(-Math.PI, Math.PI),
-      duration: 0.5
-    });
-    AnimManager.singleton.add(animX);
-    AnimManager.singleton.add(animY);
-    AnimManager.singleton.add(animAngle);
+    if (this.redirectTo === -1) {
+      var envelope = new DisplayRect({
+        x: player.x,
+        y: player.y,
+        w: 20,
+        h: 10,
+        color: '#eeeeee',
+        anchorX: 10,
+        anchorY: 5,
+        angle: Random.range(0, Math.PI * 2)
+      });
+      this.world.addChild(envelope);
+      var animX = new Anim({
+        object: envelope,
+        property: 'x',
+        from: player.x,
+        to: this.mailAabb.x,
+        duration: 0.5,
+        timeFunction: Anim.easingFunctions.easeInCubic
+      });
+      var animY = new Anim({
+        object: envelope,
+        property: 'y',
+        from: player.y,
+        to: this.mailAabb.y,
+        duration: 0.5,
+        timeFunction: Anim.easingFunctions.easeInCubic,
+        onEnd: function () {
+          this.world.removeChild(envelope);
+        }.bind(this)
+      });
+      var animAngle = new Anim({
+        object: envelope,
+        property: 'angle',
+        from: envelope.angle,
+        to: envelope.angle + Random.range(-Math.PI, Math.PI),
+        duration: 0.5
+      });
+      AnimManager.singleton.add(animX);
+      AnimManager.singleton.add(animY);
+      AnimManager.singleton.add(animAngle);
+      if (this.redirectFrom !== -1 && this.prematureDeliveredCallback) {
+        this.prematureDeliveredCallback(this);
+      }
+    } else if (this.redirectDeskCallback) {
+      this.redirectDeskCallback(this);
+    }
   }
 };

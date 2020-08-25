@@ -95,7 +95,7 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
           }
         }
         if (cell.room.furniture) {
-          var furniture = cell.room.furniture;
+          var furniture = cell.room.furniture, needsMail = false;
           for (i = 0; i < furniture.length; i += 1) {
             // mail time
             if (furniture[i].type === World.furnitureTypes.desk || furniture[i].type === World.furnitureTypes.doubleDesk) {
@@ -103,8 +103,10 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
               if (desk.needsMail && desk.mailAabb.intersectsWith(this.aabb)) {
                 desk.mailDelivered(this);
               }
+              needsMail = needsMail || desk.needsMail;
             }
           }
+          cell.room.needsMail = needsMail;
         }
       }
     }
