@@ -1483,6 +1483,7 @@ function Player(scene, settings) {
   }, settings || {});
   this.aabb = new AABB(0, 0, 10, 10);
   this.prevAabb = new AABB(0, 0, 10, 10);
+  this.broadphase = new AABB(0, 0, 10, 10);
   this.speed = 200;
   this.vel = {
     x: 0,
@@ -1560,6 +1561,7 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
           this.prevVel.x = this.vel.x;
           this.prevVel.y = this.vel.y;
           var aabbs = cell.room.collisionAabbs;
+          this.calculateSweptBroadphase(dts);
           for (i = 0; i < aabbs.length; i += 1) {
             // collide with collisionAAbbs
             collisionTime = this.maybeSweptCollideWith(aabbs[i], dts);
@@ -1655,6 +1657,9 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
     }
   },
   maybeSweptCollideWith(aabb, dts) {
+    if (!this.broadphase.intersectsWith(aabb)) {
+      return 1;
+    }
     var xInvEntry, yInvEntry, xInvExit, yInvExit;
     
     if (this.vel.x > 0) {
@@ -1677,16 +1682,16 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
     var xEntry, yEntry, xExit, yExit;
 
     if (this.vel.x === 0) {
-      xEntry = -Infinity;
-      xExit = Infinity;
+      xEntry = -Number.MAX_VALUE;
+      xExit = Number.MAX_VALUE;
     } else {
       xEntry = xInvEntry / (this.vel.x * dts);
       xExit = xInvExit / (this.vel.x * dts);
     }
 
     if (this.vel.y === 0) {
-      yEntry = -Infinity;
-      yExit = Infinity;
+      yEntry = -Number.MAX_VALUE;
+      yExit = Number.MAX_VALUE;
     } else {
       yEntry = yInvEntry / (this.vel.y * dts);
       yExit = yInvExit / (this.vel.y * dts);
@@ -1698,6 +1703,8 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
     if (entryTime > exitTime || xEntry < 0 && yEntry < 0 || xEntry > 1 || yEntry > 1) {
       return 1;
     }
+
+    console.log('meow', xEntry, yEntry, xExit, yExit);
 
     // normals
     var normalX, normalY,
@@ -1716,6 +1723,18 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
     this.vel.y = dotProd * normalX;
 
     return entryTime;
+  },
+  calculateSweptBroadphase: function (dts) {
+    var dx = this.vel.x * dts, dy = this.vel.y * dts;
+    var left = this.vel.x > 0 ? this.aabb.x - this.aabb.hw : this.aabb.x - this.aabb.hw + dx,
+      top = this.vel.y > 0 ? this.aabb.y - this.aabb.hh : this.aabb.y - this.aabb.hh + dy,
+      right = this.vel.x > 0 ? this.aabb.x + this.aabb.hw + dx : this.aabb.x + this.aabb.hw,
+      bottom = this.vel.y > 0 ? this.aabb.y + this.aabb.hh + dy : this.aabb.y + this.aabb.hh;
+    
+    this.broadphase.x = (left + right) / 2;
+    this.broadphase.y = (top + bottom) / 2;
+    this.broadphase.hw = (right - left) / 2;
+    this.broadphase.hh = (bottom - top) / 2;
   }
 });
 
