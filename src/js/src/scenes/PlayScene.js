@@ -90,8 +90,44 @@ function PlayScene() {
     player.removeDirection(World.sides.top);
   });
   this.keys.push(this.wKey);
+
+  var debugColls = false;
+
+  if (debugColls) {
+    var debugBpRect = new DisplayRect({
+      x: 0, y: 0,
+      w: 10, h: 10,
+      color: '#ff0000',
+      alpha: 0.8
+    });
+    this.world.addChild(debugBpRect);
+    var bp = player.broadphase;
+
+    this.world.rooms.forEach(function (room) {
+      room.collisionAabbs.forEach(function (aabb) {
+        var rect = new DisplayRect({
+          x: aabb.x - aabb.hw,
+          y: aabb.y - aabb.hh,
+          w: aabb.hw * 2,
+          h: aabb.hh * 2,
+          color: '#ff0000',
+          alpha: 0.8
+        });
+        this.world.addChild(rect);
+      }, this);
+    }, this);
+  }
   
-  this.addSteppable(this.step.bind(this));
+  this.addSteppable(this.cycle.bind(this));
+
+  if (debugColls) {
+    this.addSteppable(function () {
+      debugBpRect.x = bp.x - bp.hw;
+      debugBpRect.y = bp.y - bp.hh;
+      debugBpRect.w = bp.hw * 2;
+      debugBpRect.h = bp.hh * 2;
+    });
+  }
 }
 PlayScene.prototype = extendPrototype(Scene.prototype, {
   destroy: function () {
@@ -99,7 +135,7 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
       key.destroy();
     });
   },
-  step: function (dts) {
+  cycle: function (dts) {
     this.player.step(dts);
     if (!this.seeWholeWorld) {
       this.world.x = Math.floor(SETTINGS.width / 2 - this.player.x * this.world.scaleX);

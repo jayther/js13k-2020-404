@@ -16,6 +16,10 @@ function Player(scene, settings) {
     x: 0,
     y: 0
   };
+  this.normal = {
+    x: 0,
+    y: 0
+  };
   this.world = s.world;
   this.currentRoom = null;
   var img = new DisplayImg({
@@ -69,7 +73,7 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
     this.aabb.set(this.x, this.y);
   },
   step: function (dts) {
-    var cells, i, cell, collisionTime = 1;
+    var cells, i, cell, ct, collisionTime = 1, normalX = 0, normalY = 0;
 
     if (this.vel.x || this.vel.y) {
       this.img.angle = JMath.angleFromVec(this.vel);
@@ -77,17 +81,22 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
 
     cell = this.world.getCellFromPos(this.x, this.y);
 
+    this.updateVel();
+
     // collide with furniture
     if (this.collideWithFurniture) {
       if (cell && cell.room) {
         if (cell.room.collisionAabbs) {
-          this.prevVel.x = this.vel.x;
-          this.prevVel.y = this.vel.y;
           var aabbs = cell.room.collisionAabbs;
           this.calculateSweptBroadphase(dts);
           for (i = 0; i < aabbs.length; i += 1) {
             // collide with collisionAAbbs
-            collisionTime = this.maybeSweptCollideWith(aabbs[i], dts);
+            ct = this.maybeSweptCollideWith(aabbs[i], dts);
+            if (ct < collisionTime) {
+              collisionTime = ct;
+              normalX = this.normal.x;
+              normalY = this.normal.y;
+            }
           }
         }
         if (cell.room.furniture) {
@@ -106,17 +115,14 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
         }
       }
     }
+    this.x += this.vel.x * dts * collisionTime;
+    this.y += this.vel.y * dts * collisionTime;
     if (collisionTime < 1) {
-      this.x += this.prevVel.x * dts * collisionTime;
-      this.y += this.prevVel.y * dts * collisionTime;
+      var dotProd = (this.vel.x * normalY + this.vel.y * normalX) * (1 - collisionTime);
+      this.x += dotProd * normalY * dts;
+      this.y += dotProd * normalX * dts;
     }
-    this.x += this.vel.x * dts;
-    this.y += this.vel.y * dts;
     this.updateAABB();
-    if (collisionTime < 1) {
-      this.vel.x = this.prevVel.x;
-      this.vel.y = this.prevVel.y;
-    }
     
     // player collision with cells
     if (this.collideWithWalls) {
@@ -181,6 +187,8 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
   },
   maybeSweptCollideWith(aabb, dts) {
     if (!this.broadphase.intersectsWith(aabb)) {
+      this.normal.x = 0;
+      this.normal.y = 0;
       return 1;
     }
     var xInvEntry, yInvEntry, xInvExit, yInvExit;
@@ -224,26 +232,19 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
       exitTime = Math.min(xExit, yExit);
     
     if (entryTime > exitTime || xEntry < 0 && yEntry < 0 || xEntry > 1 || yEntry > 1) {
+      this.normal.x = 0;
+      this.normal.y = 0;
       return 1;
     }
 
-    console.log('meow', xEntry, yEntry, xExit, yExit);
-
     // normals
-    var normalX, normalY,
-      remainingTime = 1 - entryTime;
     if (xEntry > yEntry) {
-      normalX = xInvEntry < 0 ? 1 : -1;
-      normalY = 0;
+      this.normal.x = xInvEntry < 0 ? 1 : -1;
+      this.normal.y = 0;
     } else {
-      normalX = 0;
-      normalY = yInvEntry < 0 ? 1 : -1;
+      this.normal.x = 0;
+      this.normal.y = yInvEntry < 0 ? 1 : -1;
     }
-
-    // slide
-    var dotProd = (this.vel.x * normalY + this.vel.y * normalX) * remainingTime;
-    this.vel.x = dotProd * normalY;
-    this.vel.y = dotProd * normalX;
 
     return entryTime;
   },
