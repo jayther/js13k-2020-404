@@ -2,7 +2,15 @@ function Desk(type, x, y, w, h, chairSize, room) {
   this.id = Desk.poolId++;
   this.type = type;
   this.room = room;
-  this.mailAabb = new AABB(x, y, w / 2 + Desk.mailAabbPadding, h / 2 + Desk.mailAabbPadding);
+  // facing right, halfway in
+  var chairX = x - w / 2,
+    chairY = y;
+  this.mailAabb = new AABB(
+    (x + chairX) / 2,
+    (y + chairY) / 2,
+    (w + chairSize / 2) / 2 + Desk.mailAabbPadding,
+    (h + chairSize / 2) / 2 + Desk.mailAabbPadding
+  );
   this.displayItems = [
     new DisplayRect({
       x: x - w / 2,
