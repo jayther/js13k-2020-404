@@ -93,7 +93,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       y: 0 * this.cellSize,
       w: w * this.cellSize,
       h: h * this.cellSize,
-      color: Resources.loadedPatterns.wall // '#000000'
+      color: Resources.loadedPatterns.wallTile // '#000000'
     }));
     
     // hallway floor
@@ -102,7 +102,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       y: 1 * this.cellSize,
       w: (w - 2) * this.cellSize,
       h: (h - 2) * this.cellSize,
-      color: Resources.loadedPatterns.grass // '#656565'
+      color: Resources.loadedPatterns.hallwayTile // '#656565'
     }));
     
     var i, j, x, y, x2, y2;
@@ -273,7 +273,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         y: (chunk.top - 1) * this.cellSize,
         w: (chunk.right - chunk.left + 2) * this.cellSize,
         h: (chunk.bottom - chunk.top + 2) * this.cellSize,
-        color: Resources.loadedPatterns.wall // '#000000'
+        color: Resources.loadedPatterns.wallTile // '#000000'
       }));
       
       // room floor graphic
@@ -282,7 +282,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         y: chunk.top * this.cellSize,
         w: (chunk.right - chunk.left) * this.cellSize,
         h: (chunk.bottom - chunk.top) * this.cellSize,
-        color: Resources.loadedPatterns.stone // '#999999'
+        color: Resources.loadedPatterns.roomTile // '#999999'
       }));
       // put walls around final chunks
       for (x = chunk.left - 1; x < chunk.right + 1; x += 1) {

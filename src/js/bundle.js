@@ -1,14 +1,11 @@
 var Resources = {
   imgs: {
-    robot: "robot_3Dblue.png",
-    grass: "grassCenter.png",
-    stone: "stoneCenter.png",
-    wall: "roofGreyMid.png"
+    robot: "robot_3Dblue.png"
   },
   patterns: {
-    grass: "repeat",
-    stone: "repeat",
-    wall: "repeat"
+    hallwayTile: "repeat",
+    roomTile: "repeat",
+    wallTile: "repeat"
   },
   loadedImgs: {},
   loadedPatterns: {}
@@ -560,6 +557,88 @@ CachedContainer.prototype = extendPrototype(DisplayContainer.prototype, {
   }
 });
 
+
+function squiggles(y, amplitude, iterations, width, thickness) {
+  var i, points = [], step = width / (iterations - 1);
+  for (i = 0; i < iterations; i += 1) {
+    points.push({ x: i * step, y: y + amplitude - thickness / 2 });
+    amplitude *= -1;
+  }
+  amplitude *= -1;
+  for (i = iterations - 1; i >= 0; i -= 1) {
+    points.push({ x: i * step, y: y + amplitude + thickness / 2});
+    amplitude *= -1;
+  }
+  return points;
+}
+
+var hallwayTile = (function () {
+  var c = new CachedContainer({ w: 70, h: 70 });
+  
+  c.addChild(new DisplayRect({
+    w: 70, h: 70,
+    color: '#c99869'
+  }));
+
+  c.addChild(new DisplayPath({
+    path: squiggles(25, 5, 7, 70, 16),
+    color: '#c58f5c'
+  }));
+
+  c.addChild(new DisplayPath({
+    path: squiggles(55, 5, 7, 70, 16),
+    color: '#c58f5c'
+  }));
+
+  return c;
+}());
+
+var wallTile = (function () {
+  var c = new CachedContainer({ w: 70, h: 70 });
+  
+  c.addChild(new DisplayRect({
+    w: 70, h: 70,
+    color: '#838796'
+  }));
+
+  c.addChild(new DisplayPath({
+    path: squiggles(25, 5, 7, 70, 24),
+    color: '#7e8291'
+  }));
+
+  c.addChild(new DisplayPath({
+    path: squiggles(55, 5, 7, 70, 16),
+    color: '#7e8291'
+  }));
+
+  return c;
+}());
+
+var roomTile = (function () {
+  var c = new CachedContainer({ w: 70, h: 70 });
+  
+  c.addChild(new DisplayRect({
+    w: 70, h: 70,
+    color: '#acc0c1'
+  }));
+
+  c.addChild(new DisplayPath({
+    path: squiggles(25, 5, 7, 70, 16),
+    color: '#bbcbcc'
+  }));
+
+  c.addChild(new DisplayPath({
+    path: squiggles(55, 5, 7, 70, 16),
+    color: '#bbcbcc'
+  }));
+
+  return c;
+}());
+
+Resources.loadedImgs.hallwayTile = hallwayTile.canvas;
+Resources.loadedImgs.wallTile = wallTile.canvas;
+Resources.loadedImgs.roomTile = roomTile.canvas;
+
 function Room(id, chunk) {
   this.id = id;
   this.left = chunk.left;
@@ -783,7 +862,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       y: 0 * this.cellSize,
       w: w * this.cellSize,
       h: h * this.cellSize,
-      color: Resources.loadedPatterns.wall // '#000000'
+      color: Resources.loadedPatterns.wallTile // '#000000'
     }));
     
     // hallway floor
@@ -792,7 +871,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       y: 1 * this.cellSize,
       w: (w - 2) * this.cellSize,
       h: (h - 2) * this.cellSize,
-      color: Resources.loadedPatterns.grass // '#656565'
+      color: Resources.loadedPatterns.hallwayTile // '#656565'
     }));
     
     var i, j, x, y, x2, y2;
@@ -963,7 +1042,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         y: (chunk.top - 1) * this.cellSize,
         w: (chunk.right - chunk.left + 2) * this.cellSize,
         h: (chunk.bottom - chunk.top + 2) * this.cellSize,
-        color: Resources.loadedPatterns.wall // '#000000'
+        color: Resources.loadedPatterns.wallTile // '#000000'
       }));
       
       // room floor graphic
@@ -972,7 +1051,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         y: chunk.top * this.cellSize,
         w: (chunk.right - chunk.left) * this.cellSize,
         h: (chunk.bottom - chunk.top) * this.cellSize,
-        color: Resources.loadedPatterns.stone // '#999999'
+        color: Resources.loadedPatterns.roomTile // '#999999'
       }));
       // put walls around final chunks
       for (x = chunk.left - 1; x < chunk.right + 1; x += 1) {
@@ -1670,7 +1749,7 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
       this.updateAABB();
     }
   },
-  maybeSweptCollideWith(aabb, dts) {
+  maybeSweptCollideWith: function (aabb, dts) {
     if (!this.broadphase.intersectsWith(aabb)) {
       this.normal.x = 0;
       this.normal.y = 0;
@@ -1862,6 +1941,14 @@ function PlayScene() {
     player.removeDirection(World.sides.top);
   });
   this.keys.push(this.wKey);
+
+  // this.addChild(new DisplayImg({
+  //   img: Resources.loadedImgs.roomTile,
+  //   x: SETTINGS.width / 2 - 70,
+  //   y: SETTINGS.height / 2 - 70,
+  //   w: 140,
+  //   h: 140
+  // }));
 
   var debugColls = false;
 
@@ -2138,6 +2225,7 @@ function Main(){
   canvas.width = SETTINGS.width;
   canvas.height = SETTINGS.height;
   this.root.appendChild(canvas);
+  this.resources = Resources;
   this.canvas = canvas;
   this.context = canvas.getContext('2d');
   this.context.font = '16px Arial'; // global font

@@ -5,6 +5,7 @@ function Main(){
   canvas.width = SETTINGS.width;
   canvas.height = SETTINGS.height;
   this.root.appendChild(canvas);
+  this.resources = Resources;
   this.canvas = canvas;
   this.context = canvas.getContext('2d');
   this.context.font = '16px Arial'; // global font

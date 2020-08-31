@@ -185,7 +185,7 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
       this.updateAABB();
     }
   },
-  maybeSweptCollideWith(aabb, dts) {
+  maybeSweptCollideWith: function (aabb, dts) {
     if (!this.broadphase.intersectsWith(aabb)) {
       this.normal.x = 0;
       this.normal.y = 0;

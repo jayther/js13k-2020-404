@@ -91,6 +91,14 @@ function PlayScene() {
   });
   this.keys.push(this.wKey);
 
+  // this.addChild(new DisplayImg({
+  //   img: Resources.loadedImgs.roomTile,
+  //   x: SETTINGS.width / 2 - 70,
+  //   y: SETTINGS.height / 2 - 70,
+  //   w: 140,
+  //   h: 140
+  // }));
+
   var debugColls = false;
 
   if (debugColls) {
