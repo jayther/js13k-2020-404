@@ -40,7 +40,7 @@ function PlayScene() {
 
   this.generateMailableDesks();
   
-  this.seeWholeWorld = false;
+  this.seeWholeWorld = true;
   if (this.seeWholeWorld) {
     var w = this.world.gridWidth * this.world.cellSize;
     var h = this.world.gridHeight * this.world.cellSize;
@@ -97,6 +97,15 @@ function PlayScene() {
   //   y: SETTINGS.height / 2 - 70,
   //   w: 140,
   //   h: 140
+  // }));
+
+  // this.addChild(new DisplayRect({
+  //   x: 10,
+  //   y: 10,
+  //   w: 100,
+  //   h: 100,
+  //   rounded: 20,
+  //   color: '#ffffff'
   // }));
 
   var debugColls = false;

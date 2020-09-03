@@ -431,8 +431,10 @@ function DisplayRect(options) {
   var opts = extend({
     w: 0,
     h: 0,
-    color: 'black'
+    color: 'black',
+    rounded: 0
   }, options || {});
+  this.rounded = opts.rounded;
   this.w = opts.w;
   this.h = opts.h;
   this.color = opts.color;
@@ -440,7 +442,23 @@ function DisplayRect(options) {
 DisplayRect.prototype = extendPrototype(DisplayItem.prototype, {
   render: function (context) {
     context.fillStyle = this.color;
-    context.fillRect(0, 0, this.w, this.h);
+    if (this.rounded) {
+      var rounded = this.rounded, w = this.w, h = this.h;
+      context.beginPath();
+      context.moveTo(rounded, 0);
+      context.lineTo(w - rounded, 0);
+      context.arcTo(w, 0, w, rounded, rounded);
+      context.lineTo(w, h - rounded);
+      context.arcTo(w, h, w - rounded, h, rounded);
+      context.lineTo(rounded, h);
+      context.arcTo(0, h, 0, h - rounded, rounded);
+      context.lineTo(0, rounded);
+      context.arcTo(0, 0, rounded, 0, rounded);
+      context.closePath();
+      context.fill();
+    } else {
+      context.fillRect(0, 0, this.w, this.h);
+    }
   }
 });
 
@@ -846,7 +864,9 @@ World.openDeskDouble = {
 World.privateDesk = {
   width: 80,
   depth: 20,
-  chairSize: 20
+  chairSize: 20,
+  spacing: 10,
+  type: World.furnitureTypes.desk
 };
 
 World.mailAabbPadding = 5;
@@ -1346,6 +1366,8 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
 
     if (room.type === World.roomTypes.officeOpen) {
       collisionDesksPair = this.generateOpenOffice(bounds);
+    } else if (room.type === World.roomTypes.officePrivate) {
+      collisionDesksPair = this.generatePrivateOffice(bounds, room);
     }
 
     if (collisionDesksPair) {
@@ -1385,7 +1407,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     });
     this.addChild(displayText);
   },
-  generateOpenOffice: function (bounds) {
+  generateOpenOffice: function (bounds, room) {
     var i;
     var boundsWidth = bounds.right - bounds.left,
       boundsHeight = bounds.bottom - bounds.top;
@@ -1472,6 +1494,92 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     }
 
     return [collisionAabbs, furniture];
+  },
+  generatePrivateOffice: function (bounds, room) {
+    var boundsWidth = bounds.right - bounds.left,
+      boundsHeight = bounds.bottom - bounds.top,
+      facing = 0, i, f, pool = [];
+
+    // determine orientation of private desk
+    // single door wall
+    for (i = 1; i <= 8 && !facing; i <<= 1) {
+      if (i === room.doorWallFlags) {
+        facing = i;
+      } else if ((room.doorWallFlags & i) > 0) {
+        pool.push(i); // for random direction later
+      }
+    }
+    // opposing door walls
+    if (!facing) {
+      if (room.doorWallFlags === 5) {
+        // 0101
+        facing = Random.pick([1, 4]);
+      } else if (room.doorWallFlags === 10) {
+        // 1010
+        facing = Random.pick([2, 8]);
+      }
+    }
+    // three door walls
+    if (!facing) {
+      for (f = 1; f <= 8 && !facing; f <<= 1) {
+        i = f;
+        // upper digit
+        if ((f << 1) > 8) {
+          i |= 1; // wrap
+        } else {
+          i |= f << 1;
+        }
+        // lower digit
+        if ((f >> 1) < 1) {
+          i |= 8; // wrap
+        } else {
+          i |= f >> 1;
+        }
+        if (i === room.doorWallFlags) {
+          facing = f;
+        }        
+      }
+    }
+    // any other door wall configs
+    if (!facing) {
+      facing = Random.pick(pool);
+    }
+
+    var deskSettings = World.privateDesk,
+      fullDepth = deskSettings.depth + deskSettings.chairSize / 2,
+      halfWidth = deskSettings.width / 2,
+      tolerance = fullDepth + deskSettings.spacing,
+      x, y, lower, upper;
+
+    if (facing === World.sides.left || facing === World.sides.right) {
+      lower = bounds.top + halfWidth;
+      upper = bounds.bottom - halfWidth;
+      if (upper <= lower) {
+        y = (bounds.top + bounds.bottom) / 2;
+      } else {
+        y = Random.range(lower, upper);
+      }
+    } else {
+      lower = bounds.left + halfWidth;
+      upper = bounds.right - halfWidth;
+      if (upper <= lower) {
+        x = (bounds.left + bounds.right) / 2;
+      } else {
+        x = Random.range(lower, upper);
+      }
+    }
+
+    if (facing === World.sides.right) {
+      x = bounds.left + tolerance;
+    } else if (facing === World.sides.left) {
+      x = bounds.right - tolerance;
+    } else if (facing === World.sides.bottom) {
+      y = bounds.top + tolerance;
+    } else { // facing top
+      y = bounds.bottom - tolerance;
+    }
+    
+    return this.createDesk(x, y, facing, deskSettings);
   },
   createCell: function (x, y, type, room) {
     var color = null,
@@ -1891,7 +1999,7 @@ function PlayScene() {
 
   this.generateMailableDesks();
   
-  this.seeWholeWorld = false;
+  this.seeWholeWorld = true;
   if (this.seeWholeWorld) {
     var w = this.world.gridWidth * this.world.cellSize;
     var h = this.world.gridHeight * this.world.cellSize;
@@ -1948,6 +2056,15 @@ function PlayScene() {
   //   y: SETTINGS.height / 2 - 70,
   //   w: 140,
   //   h: 140
+  // }));
+
+  // this.addChild(new DisplayRect({
+  //   x: 10,
+  //   y: 10,
+  //   w: 100,
+  //   h: 100,
+  //   rounded: 20,
+  //   color: '#ffffff'
   // }));
 
   var debugColls = false;
