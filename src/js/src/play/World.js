@@ -642,15 +642,19 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       maxDesks = Math.floor(boundsWidth / deskInterval);
       deskFrontOffset = Math.random() * (boundsWidth - maxDesks * deskInterval);
       deskY = bounds.top + deskHalfWidth;
+      // adding desks laterally
       while (deskY + deskHalfWidth < bounds.bottom) {
         for (i = 0; i < maxDesks; i += 1) {
+          // add desk columns
           deskX = bounds.left + i * deskInterval + facing * (deskSettings.depth + chairHalfSize) + deskFrontOffset;
           pair = this.createDesk(deskX, deskY, facing ? World.sides.right : World.sides.left, deskSettings);
           collisionAabbs = collisionAabbs.concat(pair[0]);
           furniture = furniture.concat(pair[1]);
         }
+        // spacing between desks
         deskY += deskSpacing + deskSettings.width;
       }
+      // determine bounds for randomized lateral position
       var topMost = null, bottomMost = null;
       collisionAabbs.forEach(function (item) {
         if (!topMost || item.y < topMost.y) {
@@ -660,7 +664,9 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
           bottomMost = item;
         }
       });
+      // randomize lateral position
       deskSideOffset = Math.random() * (boundsHeight - ((bottomMost.y + bottomMost.hh) - (topMost.y - topMost.hh)));
+      // shift everything
       collisionAabbs.forEach(function (aabb) {
         aabb.y += deskSideOffset;
       });
@@ -676,15 +682,19 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       maxDesks = Math.floor(boundsHeight / deskInterval);
       deskFrontOffset = Math.random() * (boundsHeight - maxDesks * deskInterval);
       deskX = bounds.left + deskHalfWidth;
+      // adding desks laterally
       while (deskX + deskHalfWidth < bounds.right) {
         for (i = 0; i < maxDesks; i += 1) {
+          // add desk columns
           deskY = bounds.top + i * deskInterval + facing * (deskSettings.depth + chairHalfSize) + deskFrontOffset;
           pair = this.createDesk(deskX, deskY, facing ? World.sides.bottom : World.sides.top, deskSettings);
           collisionAabbs = collisionAabbs.concat(pair[0]);
           furniture = furniture.concat(pair[1]);
         }
+        // space between desks
         deskX += deskSpacing + deskSettings.width;
       }
+      // determine bounds for randomized lateral position
       var leftMost = null, rightMost = null;
       collisionAabbs.forEach(function (item) {
         if (!leftMost || item.x < leftMost.x) {
@@ -694,7 +704,9 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
           rightMost = item;
         }
       });
+      // randomize lateral position
       deskSideOffset = Math.random() * (boundsWidth - ((rightMost.x + rightMost.hw) - (leftMost.x - leftMost.hw)));
+      // shift everything
       collisionAabbs.forEach(function (aabb) {
         aabb.x += deskSideOffset;
       });
@@ -709,9 +721,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     return [collisionAabbs, furniture];
   },
   generatePrivateOffice: function (bounds, room) {
-    var boundsWidth = bounds.right - bounds.left,
-      boundsHeight = bounds.bottom - bounds.top,
-      facing = 0, i, f, pool = [];
+    var facing = 0, i, f, pool = [];
 
     // determine orientation of private desk
     // single door wall
@@ -759,11 +769,12 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     }
 
     var deskSettings = World.privateDesk,
-      fullDepth = deskSettings.depth + deskSettings.chairSize / 2,
+      fullDepth = deskSettings.depth + deskSettings.chairSize / 2, // depth + chair slightly in
       halfWidth = deskSettings.width / 2,
-      tolerance = fullDepth + deskSettings.spacing,
+      tolerance = fullDepth + deskSettings.spacing, // depth + chair + spacing behind chair
       x, y, lower, upper;
 
+    // randomize the lateral position of the desk
     if (facing === World.sides.left || facing === World.sides.right) {
       lower = bounds.top + halfWidth;
       upper = bounds.bottom - halfWidth;
@@ -782,6 +793,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       }
     }
 
+    // put up against wall opposite of a door
     if (facing === World.sides.right) {
       x = bounds.left + tolerance;
     } else if (facing === World.sides.left) {
