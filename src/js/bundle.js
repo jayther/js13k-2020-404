@@ -869,6 +869,13 @@ World.privateDesk = {
   type: World.furnitureTypes.desk
 };
 
+World.bullpenDesk = {
+  width: 40,
+  depth: 20,
+  chairSize: 20,
+  type: World.furnitureTypes.desk
+};
+
 World.mailAabbPadding = 5;
 
 World.prototype = extendPrototype(DisplayContainer.prototype, {
@@ -1364,17 +1371,6 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       bounds.bottom -= this.cellSize * offset;
     }
 
-    if (room.type === World.roomTypes.officeOpen) {
-      collisionDesksPair = this.generateOpenOffice(bounds);
-    } else if (room.type === World.roomTypes.officePrivate) {
-      collisionDesksPair = this.generatePrivateOffice(bounds, room);
-    }
-
-    if (collisionDesksPair) {
-      room.collisionAabbs = collisionDesksPair[0];
-      room.furniture = collisionDesksPair[1];
-    }
-
     // debug placeable area
     var boundRect = new DisplayRect({
       x: bounds.left,
@@ -1384,6 +1380,19 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       color: '#007700'
     });
     this.addChild(boundRect);
+
+    if (room.type === World.roomTypes.officeOpen) {
+      collisionDesksPair = this.generateOpenOffice(bounds);
+    } else if (room.type === World.roomTypes.officePrivate) {
+      collisionDesksPair = this.generatePrivateOffice(bounds, room);
+    } else if (room.type === World.roomTypes.officeBullpen) {
+      collisionDesksPair = this.generateBullpenOffice(bounds, room);
+    }
+
+    if (collisionDesksPair) {
+      room.collisionAabbs = collisionDesksPair[0];
+      room.furniture = collisionDesksPair[1];
+    }
 
     room.furniture.forEach(function (desk) {
       desk.room = room;
@@ -1429,15 +1438,19 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       maxDesks = Math.floor(boundsWidth / deskInterval);
       deskFrontOffset = Math.random() * (boundsWidth - maxDesks * deskInterval);
       deskY = bounds.top + deskHalfWidth;
+      // adding desks laterally
       while (deskY + deskHalfWidth < bounds.bottom) {
         for (i = 0; i < maxDesks; i += 1) {
+          // add desk columns
           deskX = bounds.left + i * deskInterval + facing * (deskSettings.depth + chairHalfSize) + deskFrontOffset;
           pair = this.createDesk(deskX, deskY, facing ? World.sides.right : World.sides.left, deskSettings);
           collisionAabbs = collisionAabbs.concat(pair[0]);
           furniture = furniture.concat(pair[1]);
         }
+        // spacing between desks
         deskY += deskSpacing + deskSettings.width;
       }
+      // determine bounds for randomized lateral position
       var topMost = null, bottomMost = null;
       collisionAabbs.forEach(function (item) {
         if (!topMost || item.y < topMost.y) {
@@ -1447,7 +1460,9 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
           bottomMost = item;
         }
       });
+      // randomize lateral position
       deskSideOffset = Math.random() * (boundsHeight - ((bottomMost.y + bottomMost.hh) - (topMost.y - topMost.hh)));
+      // shift everything
       collisionAabbs.forEach(function (aabb) {
         aabb.y += deskSideOffset;
       });
@@ -1463,15 +1478,19 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       maxDesks = Math.floor(boundsHeight / deskInterval);
       deskFrontOffset = Math.random() * (boundsHeight - maxDesks * deskInterval);
       deskX = bounds.left + deskHalfWidth;
+      // adding desks laterally
       while (deskX + deskHalfWidth < bounds.right) {
         for (i = 0; i < maxDesks; i += 1) {
+          // add desk columns
           deskY = bounds.top + i * deskInterval + facing * (deskSettings.depth + chairHalfSize) + deskFrontOffset;
           pair = this.createDesk(deskX, deskY, facing ? World.sides.bottom : World.sides.top, deskSettings);
           collisionAabbs = collisionAabbs.concat(pair[0]);
           furniture = furniture.concat(pair[1]);
         }
+        // space between desks
         deskX += deskSpacing + deskSettings.width;
       }
+      // determine bounds for randomized lateral position
       var leftMost = null, rightMost = null;
       collisionAabbs.forEach(function (item) {
         if (!leftMost || item.x < leftMost.x) {
@@ -1481,7 +1500,9 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
           rightMost = item;
         }
       });
+      // randomize lateral position
       deskSideOffset = Math.random() * (boundsWidth - ((rightMost.x + rightMost.hw) - (leftMost.x - leftMost.hw)));
+      // shift everything
       collisionAabbs.forEach(function (aabb) {
         aabb.x += deskSideOffset;
       });
@@ -1496,9 +1517,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     return [collisionAabbs, furniture];
   },
   generatePrivateOffice: function (bounds, room) {
-    var boundsWidth = bounds.right - bounds.left,
-      boundsHeight = bounds.bottom - bounds.top,
-      facing = 0, i, f, pool = [];
+    var facing = 0, i, f, pool = [];
 
     // determine orientation of private desk
     // single door wall
@@ -1546,11 +1565,12 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     }
 
     var deskSettings = World.privateDesk,
-      fullDepth = deskSettings.depth + deskSettings.chairSize / 2,
+      fullDepth = deskSettings.depth + deskSettings.chairSize / 2, // depth + chair slightly in
       halfWidth = deskSettings.width / 2,
-      tolerance = fullDepth + deskSettings.spacing,
+      tolerance = fullDepth + deskSettings.spacing, // depth + chair + spacing behind chair
       x, y, lower, upper;
 
+    // randomize the lateral position of the desk
     if (facing === World.sides.left || facing === World.sides.right) {
       lower = bounds.top + halfWidth;
       upper = bounds.bottom - halfWidth;
@@ -1569,6 +1589,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       }
     }
 
+    // put up against wall opposite of a door
     if (facing === World.sides.right) {
       x = bounds.left + tolerance;
     } else if (facing === World.sides.left) {
@@ -1580,6 +1601,123 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     }
     
     return this.createDesk(x, y, facing, deskSettings);
+  },
+  generateBullpenOffice: function (bounds, room) {
+    var aisleSize = 30,
+      cubicleSize = 40,
+      wallThickness = 2,
+      maxRowsPerSection = 2,
+      maxColumnsPerRow = 5,
+      sectionColumnSize = maxColumnsPerRow * cubicleSize,
+      sectionRowSize = maxRowsPerSection * cubicleSize,
+      boundsWidth = bounds.right - bounds.left,
+      boundsHeight = bounds.bottom - bounds.top,
+      rowAxisWidth,
+      columnAxisHeight,
+      orientation; // 0 = horizontal, 1 = vertical
+
+    if (boundsWidth > boundsHeight) {
+      rowAxisWidth = boundsWidth;
+      columnAxisHeight = boundsHeight;
+      orientation = 0;
+    } else {
+      rowAxisWidth = boundsHeight;
+      columnAxisHeight = boundsWidth;
+      orientation = 1;
+    }
+
+    var numSectionRows = Math.floor((columnAxisHeight - aisleSize) / (aisleSize + sectionRowSize)),
+      numSectionColumns = Math.floor((rowAxisWidth - aisleSize) / (aisleSize + sectionColumnSize)),
+      lastSectionRowRemainder = (columnAxisHeight - aisleSize) % (aisleSize + sectionRowSize) - aisleSize,
+      lastSectionColumnRemainder = (rowAxisWidth - aisleSize) % (aisleSize + sectionColumnSize) - aisleSize,
+      lastSectionNumRows = Math.floor(lastSectionRowRemainder / cubicleSize),
+      lastSectionNumColumns = Math.floor(lastSectionColumnRemainder / cubicleSize),
+      sectionRow, sectionColumn, cubicleRow, cubicleColumn,
+      sectionX, sectionY, cubicleX, cubicleY,
+      maxCubicleRows, maxCubicleColumns;
+    
+    if (lastSectionNumRows > 0) {
+      numSectionRows += 1;
+    }
+    if (lastSectionNumColumns > 0) {
+      numSectionColumns += 1;
+    }
+    
+    var cubicles = [];
+    
+    for (sectionRow = 0; sectionRow < numSectionRows; sectionRow += 1) {
+      sectionY = (sectionRowSize + aisleSize) * sectionRow + aisleSize;
+      if (lastSectionNumRows > 0 && sectionRow === numSectionRows - 1) {
+        maxCubicleRows = lastSectionNumRows;
+      } else {
+        maxCubicleRows = maxRowsPerSection;
+      }
+      for (sectionColumn = 0; sectionColumn < numSectionColumns; sectionColumn += 1) {
+        sectionX = (sectionColumnSize + aisleSize) * sectionColumn + aisleSize;
+        if (lastSectionNumColumns > 0 && sectionColumn === numSectionColumns - 1) {
+          maxCubicleColumns = lastSectionNumColumns;
+        } else {
+          maxCubicleColumns = maxColumnsPerRow;
+        }
+        for (cubicleRow = 0; cubicleRow < maxCubicleRows; cubicleRow += 1) {
+          cubicleY = sectionY + cubicleRow * cubicleSize;
+          for (cubicleColumn = 0; cubicleColumn < maxCubicleColumns; cubicleColumn += 1) {
+            cubicleX = sectionX + cubicleColumn * cubicleSize;
+            cubicles.push(new AABB(
+              cubicleX + cubicleSize / 2,
+              cubicleY + cubicleSize / 2,
+              cubicleSize / 2,
+              cubicleSize / 2
+            ));
+          }
+        }
+      }
+    }
+
+    var boundsCenter = {
+        x: (bounds.left + bounds.right) / 2,
+        y: (bounds.top + bounds.bottom) / 2
+      },
+      localBoundsCenter = {
+        x: rowAxisWidth / 2,
+        y: columnAxisHeight / 2
+      },
+      pool,
+      rotate;
+
+    // randomize angle
+    if (orientation === 0) { // horizontal
+      pool = [0, 180];
+    } else { // vertical
+      pool = [90, 270]; 
+    }
+    rotate = Random.pick(pool);
+
+    console.log(boundsCenter, localBoundsCenter);
+
+    cubicles.forEach(function (cubicle) {
+      // rotate about the center of local bounds
+      if (rotate !== 0) {
+        cubicle.rotateAroundPoint(localBoundsCenter, rotate);
+      }
+
+      // move all to center of bounds
+      cubicle.x += boundsCenter.x - localBoundsCenter.x;
+      cubicle.y += boundsCenter.y - localBoundsCenter.y;
+
+    });
+    cubicles.forEach(function (cubicle) {
+      console.log(cubicle);
+      this.addChild(new DisplayRect({
+        x: cubicle.x - cubicle.hw,
+        y: cubicle.y - cubicle.hh,
+        w: cubicle.hw * 2,
+        h: cubicle.hh * 2,
+        color: 'white'
+      }));
+    }, this);
+
+    return [[], []];
   },
   createCell: function (x, y, type, room) {
     var color = null,

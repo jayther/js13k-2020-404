@@ -82,6 +82,13 @@ World.privateDesk = {
   type: World.furnitureTypes.desk
 };
 
+World.bullpenDesk = {
+  width: 40,
+  depth: 20,
+  chairSize: 20,
+  type: World.furnitureTypes.desk
+};
+
 World.mailAabbPadding = 5;
 
 World.prototype = extendPrototype(DisplayContainer.prototype, {
@@ -577,17 +584,6 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       bounds.bottom -= this.cellSize * offset;
     }
 
-    if (room.type === World.roomTypes.officeOpen) {
-      collisionDesksPair = this.generateOpenOffice(bounds);
-    } else if (room.type === World.roomTypes.officePrivate) {
-      collisionDesksPair = this.generatePrivateOffice(bounds, room);
-    }
-
-    if (collisionDesksPair) {
-      room.collisionAabbs = collisionDesksPair[0];
-      room.furniture = collisionDesksPair[1];
-    }
-
     // debug placeable area
     var boundRect = new DisplayRect({
       x: bounds.left,
@@ -597,6 +593,19 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       color: '#007700'
     });
     this.addChild(boundRect);
+
+    if (room.type === World.roomTypes.officeOpen) {
+      collisionDesksPair = this.generateOpenOffice(bounds);
+    } else if (room.type === World.roomTypes.officePrivate) {
+      collisionDesksPair = this.generatePrivateOffice(bounds, room);
+    } else if (room.type === World.roomTypes.officeBullpen) {
+      collisionDesksPair = this.generateBullpenOffice(bounds, room);
+    }
+
+    if (collisionDesksPair) {
+      room.collisionAabbs = collisionDesksPair[0];
+      room.furniture = collisionDesksPair[1];
+    }
 
     room.furniture.forEach(function (desk) {
       desk.room = room;
@@ -805,6 +814,129 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     }
     
     return this.createDesk(x, y, facing, deskSettings);
+  },
+  generateBullpenOffice: function (bounds, room) {
+    var aisleSize = 30,
+      cubicleSize = 40,
+      wallThickness = 2,
+      maxRowsPerSection = 2,
+      maxColumnsPerRow = 5,
+      sectionColumnSize = maxColumnsPerRow * cubicleSize,
+      sectionRowSize = maxRowsPerSection * cubicleSize,
+      boundsWidth = bounds.right - bounds.left,
+      boundsHeight = bounds.bottom - bounds.top,
+      rowAxisWidth,
+      columnAxisHeight,
+      orientation; // 0 = horizontal, 1 = vertical
+
+    // work with horizontal orientation for local placement
+    if (boundsWidth > boundsHeight) {
+      rowAxisWidth = boundsWidth;
+      columnAxisHeight = boundsHeight;
+      orientation = 0;
+    } else {
+      rowAxisWidth = boundsHeight;
+      columnAxisHeight = boundsWidth;
+      orientation = 1;
+    }
+
+    // separate into full sections and partial sections
+    var numSectionRows = Math.floor((columnAxisHeight - aisleSize) / (aisleSize + sectionRowSize)),
+      numSectionColumns = Math.floor((rowAxisWidth - aisleSize) / (aisleSize + sectionColumnSize)),
+      lastSectionRowRemainder = (columnAxisHeight - aisleSize) % (aisleSize + sectionRowSize) - aisleSize,
+      lastSectionColumnRemainder = (rowAxisWidth - aisleSize) % (aisleSize + sectionColumnSize) - aisleSize,
+      lastSectionNumRows = Math.floor(lastSectionRowRemainder / cubicleSize),
+      lastSectionNumColumns = Math.floor(lastSectionColumnRemainder / cubicleSize),
+      sectionRow, sectionColumn, cubicleRow, cubicleColumn,
+      sectionX, sectionY, cubicleX, cubicleY,
+      maxCubicleRows, maxCubicleColumns;
+    
+    if (lastSectionNumRows > 0) {
+      numSectionRows += 1;
+    }
+    if (lastSectionNumColumns > 0) {
+      numSectionColumns += 1;
+    }
+    
+    var cubicles = [];
+    
+    // for each section
+    for (sectionRow = 0; sectionRow < numSectionRows; sectionRow += 1) {
+      sectionY = (sectionRowSize + aisleSize) * sectionRow + aisleSize;
+      if (lastSectionNumRows > 0 && sectionRow === numSectionRows - 1) {
+        // rows for partial sections
+        maxCubicleRows = lastSectionNumRows;
+      } else {
+        // full rows
+        maxCubicleRows = maxRowsPerSection;
+      }
+      for (sectionColumn = 0; sectionColumn < numSectionColumns; sectionColumn += 1) {
+        sectionX = (sectionColumnSize + aisleSize) * sectionColumn + aisleSize;
+        if (lastSectionNumColumns > 0 && sectionColumn === numSectionColumns - 1) {
+          // columns for partial sections
+          maxCubicleColumns = lastSectionNumColumns;
+        } else {
+          // full columns
+          maxCubicleColumns = maxColumnsPerRow;
+        }
+        // cubicles within section
+        for (cubicleRow = 0; cubicleRow < maxCubicleRows; cubicleRow += 1) {
+          cubicleY = sectionY + cubicleRow * cubicleSize;
+          for (cubicleColumn = 0; cubicleColumn < maxCubicleColumns; cubicleColumn += 1) {
+            cubicleX = sectionX + cubicleColumn * cubicleSize;
+            cubicles.push(new AABB(
+              cubicleX + cubicleSize / 2,
+              cubicleY + cubicleSize / 2,
+              cubicleSize / 2,
+              cubicleSize / 2
+            ));
+          }
+        }
+      }
+    }
+
+    var boundsCenter = {
+        x: (bounds.left + bounds.right) / 2,
+        y: (bounds.top + bounds.bottom) / 2
+      },
+      localBoundsCenter = {
+        x: rowAxisWidth / 2,
+        y: columnAxisHeight / 2
+      },
+      pool,
+      rotate;
+
+    // randomize angle
+    if (orientation === 0) { // horizontal
+      pool = [0, 180];
+    } else { // vertical
+      pool = [90, 270]; 
+    }
+    rotate = Random.pick(pool);
+
+    cubicles.forEach(function (cubicle) {
+      // rotate about the center of local bounds
+      if (rotate !== 0) {
+        cubicle.rotateAroundPoint(localBoundsCenter, rotate);
+      }
+
+      // move all to center of bounds
+      cubicle.x += boundsCenter.x - localBoundsCenter.x;
+      cubicle.y += boundsCenter.y - localBoundsCenter.y;
+
+    });
+    cubicles.forEach(function (cubicle) {
+      console.log(cubicle);
+      this.addChild(new DisplayRect({
+        x: cubicle.x - cubicle.hw,
+        y: cubicle.y - cubicle.hh,
+        w: cubicle.hw * 2,
+        h: cubicle.hh * 2,
+        color: 'white'
+      }));
+    }, this);
+
+    return [[], []];
   },
   createCell: function (x, y, type, room) {
     var color = null,
