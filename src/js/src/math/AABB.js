@@ -66,11 +66,19 @@ AABB.prototype.rotateAroundPoint = function (point, angle) {
   this.y = point.y + n.y;
   return this;
 };
-AABB.prototype.toRect = function () {
+AABB.prototype.toBounds = function () {
   return {
     left: this.x - this.hw,
     top: this.y - this.hh,
     right: this.x + this.hw,
     bottom: this.y + this.hh
+  };
+};
+AABB.prototype.toRect = function () {
+  return {
+    x: this.x - this.hw,
+    y: this.y - this.hh,
+    w: this.hw * 2,
+    h: this.hh * 2
   };
 };

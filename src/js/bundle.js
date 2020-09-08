@@ -133,9 +133,7 @@ Random = {
       }
       flags >>= 1;
       i += 1;
-      console.log('flags', flags.toString(2));
     }
-    console.log('pool', pool);
     if (pool.length > 0) {
       return Random.pick(pool);
     }
@@ -273,12 +271,20 @@ AABB.prototype.rotateAroundPoint = function (point, angle) {
   this.y = point.y + n.y;
   return this;
 };
-AABB.prototype.toRect = function () {
+AABB.prototype.toBounds = function () {
   return {
     left: this.x - this.hw,
     top: this.y - this.hh,
     right: this.x + this.hw,
     bottom: this.y + this.hh
+  };
+};
+AABB.prototype.toRect = function () {
+  return {
+    x: this.x - this.hw,
+    y: this.y - this.hh,
+    w: this.hw * 2,
+    h: this.hh * 2
   };
 };
 
@@ -853,7 +859,8 @@ World.furnitureTypes = {
   desk: 1,
   doubleDesk: 2,
   chair: 3,
-  invisible: 4
+  invisible: 4,
+  cubicleWall: 5
 };
 World.sides = {
   right: 1,
@@ -1620,7 +1627,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
   },
   generateBullpenOffice: function (bounds, room) {
     var aisleSize = 30,
-      cubicleSize = 40,
+      cubicleSize = 50,
       wallThickness = 2,
       maxRowsPerSection = 2,
       maxColumnsPerRow = 5,
@@ -1665,7 +1672,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       numSectionColumns += 1;
     }
     
-    var cubicles = [];
+    var cubicles = [], cubicleWalls = [];
     
     // for each section
     for (sectionRow = 0; sectionRow < numSectionRows; sectionRow += 1) {
@@ -1686,6 +1693,17 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
           // full columns
           maxCubicleColumns = maxColumnsPerRow;
         }
+        // TODO cubicle walls
+        // |_|_|_|_|_|_|_|_|
+        // | | | | | | | | |
+        aabb = new AABB(
+          sectionX + (maxCubicleColumns * cubicleSize / 2),
+          sectionY + cubicleSize,
+          maxCubicleColumns * cubicleSize / 2,
+          wallThickness
+        );
+        cubicleWalls.push(aabb);
+
         // cubicles within section
         for (cubicleRow = 0; cubicleRow < maxCubicleRows; cubicleRow += 1) {
           cubicleY = sectionY + cubicleRow * cubicleSize;
@@ -1700,7 +1718,22 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
             );
             aabb.sideOpening = sideOpening;
             cubicles.push(aabb);
+            aabb = new AABB(
+              cubicleX,
+              cubicleY + cubicleSize / 2,
+              wallThickness,
+              cubicleSize / 2
+            );
+            cubicleWalls.push(aabb);
           }
+          // last wall
+          aabb = new AABB(
+            sectionX + maxCubicleColumns * cubicleSize,
+            cubicleY + cubicleSize / 2,
+            wallThickness,
+            cubicleSize / 2
+          );
+          cubicleWalls.push(aabb);
         }
       }
     }
@@ -1712,6 +1745,10 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       localBoundsCenter = {
         x: rowAxisWidth / 2,
         y: columnAxisHeight / 2
+      },
+      localToWorld = {
+        x: boundsCenter.x - localBoundsCenter.x,
+        y: boundsCenter.y - localBoundsCenter.y
       },
       pool,
       rotate;
@@ -1738,11 +1775,10 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       }
 
       // move all to center of bounds
-      cubicle.x += boundsCenter.x - localBoundsCenter.x;
-      cubicle.y += boundsCenter.y - localBoundsCenter.y;
+      cubicle.x += localToWorld.x;
+      cubicle.y += localToWorld.y;
 
       var facing = Random.flagPick(0b1111 ^ cubicle.sideOpening), deskX, deskY;
-      console.log(cubicle.sideOpening, 0b1111 ^ cubicle.sideOpening);
       if (facing === World.sides.right) {
         deskX = cubicle.x + cubicle.hw;
         deskY = cubicle.y;
@@ -1761,16 +1797,36 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       collisionAabbs = collisionAabbs.concat(pair[0]);
       furniture = furniture.concat(pair[1]);
     }, this);
-    cubicles.forEach(function (cubicle) {
-      console.log(cubicle);
-      this.addChild(new DisplayRect({
-        x: cubicle.x - cubicle.hw,
-        y: cubicle.y - cubicle.hh,
-        w: cubicle.hw * 2,
-        h: cubicle.hh * 2,
-        color: 'white'
-      }));
-    }, this);
+
+    cubicleWalls.forEach(function (cWall) {
+      if (rotate !== 0) {
+        cWall.rotateAroundPoint(localBoundsCenter, rotate);
+      }
+      cWall.x += localToWorld.x;
+      cWall.y += localToWorld.y;
+
+      collisionAabbs.push(cWall.copy());
+      // TODO use pattern/image for walls
+      furniture.push({
+        room: null,
+        type: World.furnitureTypes.cubicleWall,
+        displayItems: [
+          new DisplayRect(extend(cWall.toRect(), {
+            color: 'black'
+          }))
+        ]
+      });
+    });
+
+    // cubicles.forEach(function (cubicle) {
+    //   this.addChild(new DisplayRect({
+    //     x: cubicle.x - cubicle.hw,
+    //     y: cubicle.y - cubicle.hh,
+    //     w: cubicle.hw * 2,
+    //     h: cubicle.hh * 2,
+    //     color: 'white'
+    //   }));
+    // }, this);
 
     return [collisionAabbs, furniture];
   },
