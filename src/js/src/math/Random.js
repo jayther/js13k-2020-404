@@ -15,5 +15,19 @@ Random = {
     var item = array[i];
     array.splice(i, 1);
     return item;
+  },
+  flagPick: function (flags) {
+    var pool = [], i = 0;
+    while (flags > 0) {
+      if (flags & 0b1) {
+        pool.push(0b1 << i);
+      }
+      flags >>= 1;
+      i += 1;
+    }
+    if (pool.length > 0) {
+      return Random.pick(pool);
+    }
+    return 0;
   }
 };

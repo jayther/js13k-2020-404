@@ -849,7 +849,11 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       lastSectionNumColumns = Math.floor(lastSectionColumnRemainder / cubicleSize),
       sectionRow, sectionColumn, cubicleRow, cubicleColumn,
       sectionX, sectionY, cubicleX, cubicleY,
-      maxCubicleRows, maxCubicleColumns;
+      maxCubicleRows, maxCubicleColumns,
+      sideOpening, aabb;
+
+    var collisionAabbs = [],
+      furniture = [];
     
     if (lastSectionNumRows > 0) {
       numSectionRows += 1;
@@ -879,17 +883,24 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
           // full columns
           maxCubicleColumns = maxColumnsPerRow;
         }
+        // TODO cubicle walls
+        // |_|_|_|_|_|_|_|_|
+        // | | | | | | | | |
+        
         // cubicles within section
         for (cubicleRow = 0; cubicleRow < maxCubicleRows; cubicleRow += 1) {
           cubicleY = sectionY + cubicleRow * cubicleSize;
+          sideOpening = (cubicleRow % 2) === 0 ? World.sides.top : World.sides.bottom;
           for (cubicleColumn = 0; cubicleColumn < maxCubicleColumns; cubicleColumn += 1) {
             cubicleX = sectionX + cubicleColumn * cubicleSize;
-            cubicles.push(new AABB(
+            aabb = new AABB(
               cubicleX + cubicleSize / 2,
               cubicleY + cubicleSize / 2,
               cubicleSize / 2,
               cubicleSize / 2
-            ));
+            );
+            aabb.sideOpening = sideOpening;
+            cubicles.push(aabb);
           }
         }
       }
@@ -918,13 +929,38 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       // rotate about the center of local bounds
       if (rotate !== 0) {
         cubicle.rotateAroundPoint(localBoundsCenter, rotate);
+        var numShifts = Math.round(rotate / 90), i;
+        for (i = 0; i < numShifts; i += 1) {
+          cubicle.sideOpening <<= 1;
+          if (cubicle.sideOpening > 0b1000) {
+            cubicle.sideOpening = 1;
+          }
+        }
       }
 
       // move all to center of bounds
       cubicle.x += boundsCenter.x - localBoundsCenter.x;
       cubicle.y += boundsCenter.y - localBoundsCenter.y;
 
-    });
+      var facing = Random.flagPick(0b1111 ^ cubicle.sideOpening), deskX, deskY;
+      if (facing === World.sides.right) {
+        deskX = cubicle.x + cubicle.hw;
+        deskY = cubicle.y;
+      } else if (facing === World.sides.bottom) {
+        deskX = cubicle.x;
+        deskY = cubicle.y + cubicle.hh;
+      } else if (facing === World.sides.left) {
+        deskX = cubicle.x - cubicle.hw;
+        deskY = cubicle.y;
+      } else { // facing top
+        deskX = cubicle.x;
+        deskY = cubicle.y - cubicle.hh;
+      }
+      
+      var pair = this.createDesk(deskX, deskY, facing, World.bullpenDesk);
+      collisionAabbs = collisionAabbs.concat(pair[0]);
+      furniture = furniture.concat(pair[1]);
+    }, this);
     cubicles.forEach(function (cubicle) {
       console.log(cubicle);
       this.addChild(new DisplayRect({
@@ -936,7 +972,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       }));
     }, this);
 
-    return [[], []];
+    return [collisionAabbs, furniture];
   },
   createCell: function (x, y, type, room) {
     var color = null,
