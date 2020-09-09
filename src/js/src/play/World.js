@@ -636,11 +636,17 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       boundsHeight = bounds.bottom - bounds.top;
     
     var collisionAabbs = [], furniture = [];
-    var pair, deskSettings = Random.pick([
-      World.openDesk,
-      World.openDeskDouble
-    ]);
-    var deskSpacing = 50, deskInterval = deskSettings.depth + deskSpacing;
+    var deskSpacing = 50, pair;
+    var deskTypes = [ World.openDesk ];
+    var lat = boundsWidth > boundsHeight ? boundsHeight : boundsWidth;
+
+    // deskSpacing * 2 to allow for random offset still allow spacing for player
+    if (World.openDeskDouble.width + deskSpacing * 2 >= lat) {
+      deskTypes.push(World.openDeskDouble);
+    }
+
+    var deskSettings = Random.pick(deskTypes);
+    var deskInterval = deskSettings.depth + deskSpacing;
     var deskHalfWidth = deskSettings.width / 2;
     var chairHalfSize = deskSettings.chairSize / 2;
     var deskX, deskY;
@@ -674,18 +680,23 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
           bottomMost = item;
         }
       });
-      // randomize lateral position
-      deskSideOffset = Math.random() * (boundsHeight - ((bottomMost.y + bottomMost.hh) - (topMost.y - topMost.hh)));
-      // shift everything
-      collisionAabbs.forEach(function (aabb) {
-        aabb.y += deskSideOffset;
-      });
-      furniture.forEach(function (item) {
-        item.displayItems.forEach(function (di) {
-          di.y += deskSideOffset;
+      // if has desks
+      if (topMost && bottomMost) {
+        // randomize lateral position
+        deskSideOffset = Math.random() * (boundsHeight - ((bottomMost.y + bottomMost.hh) - (topMost.y - topMost.hh)));
+        // shift everything
+        collisionAabbs.forEach(function (aabb) {
+          aabb.y += deskSideOffset;
         });
-        item.mailAabb.y += deskSideOffset;
-      });
+        furniture.forEach(function (item) {
+          item.displayItems.forEach(function (di) {
+            di.y += deskSideOffset;
+          });
+          item.mailAabb.y += deskSideOffset;
+        });
+      } else {
+        console.log('Empty room');
+      }
     } else {
       // desks are horizontal
       // facing: 0 == facing top, 1 == facing bottom
@@ -714,18 +725,23 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
           rightMost = item;
         }
       });
-      // randomize lateral position
-      deskSideOffset = Math.random() * (boundsWidth - ((rightMost.x + rightMost.hw) - (leftMost.x - leftMost.hw)));
-      // shift everything
-      collisionAabbs.forEach(function (aabb) {
-        aabb.x += deskSideOffset;
-      });
-      furniture.forEach(function (item) {
-        item.displayItems.forEach(function (di) {
-          di.x += deskSideOffset;
+      // if has desks
+      if (rightMost && leftMost) {
+        // randomize lateral position
+        deskSideOffset = Math.random() * (boundsWidth - ((rightMost.x + rightMost.hw) - (leftMost.x - leftMost.hw)));
+        // shift everything
+        collisionAabbs.forEach(function (aabb) {
+          aabb.x += deskSideOffset;
         });
-        item.mailAabb.x += deskSideOffset;
-      });
+        furniture.forEach(function (item) {
+          item.displayItems.forEach(function (di) {
+            di.x += deskSideOffset;
+          });
+          item.mailAabb.x += deskSideOffset;
+        });
+      } else {
+        console.log('Empty room');
+      }
     }
 
     return [collisionAabbs, furniture];
@@ -959,7 +975,8 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         var numShifts = Math.round(rotate / 90), i;
         for (i = 0; i < numShifts; i += 1) {
           cubicle.sideOpening <<= 1;
-          if (cubicle.sideOpening > 0b1000) {
+          // 1000
+          if (cubicle.sideOpening > 8) {
             cubicle.sideOpening = 1;
           }
         }
@@ -969,7 +986,8 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       cubicle.x += localToWorld.x;
       cubicle.y += localToWorld.y;
 
-      var facing = Random.flagPick(0b1111 ^ cubicle.sideOpening), deskX, deskY;
+      // 1111
+      var facing = Random.flagPick(15 ^ cubicle.sideOpening), deskX, deskY;
       if (facing === World.sides.right) {
         deskX = cubicle.x + cubicle.hw;
         deskY = cubicle.y;

@@ -19,8 +19,8 @@ Random = {
   flagPick: function (flags) {
     var pool = [], i = 0;
     while (flags > 0) {
-      if (flags & 0b1) {
-        pool.push(0b1 << i);
+      if (flags & 1) {
+        pool.push(1 << i);
       }
       flags >>= 1;
       i += 1;

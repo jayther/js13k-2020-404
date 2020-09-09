@@ -40,7 +40,7 @@ function PlayScene() {
 
   this.generateMailableDesks();
   
-  this.seeWholeWorld = true;
+  this.seeWholeWorld = false;
   if (this.seeWholeWorld) {
     var w = this.world.gridWidth * this.world.cellSize;
     var h = this.world.gridHeight * this.world.cellSize;
