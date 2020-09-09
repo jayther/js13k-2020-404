@@ -2010,6 +2010,7 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
       if (this.collideWithFurniture) {
         if (cell && cell.room) {
           if (cell.room.collisionAabbs) {
+            collisionTime = 1;
             var aabbs = cell.room.collisionAabbs;
             this.calculateSweptBroadphase(dts);
             for (i = 0; i < aabbs.length; i += 1) {
