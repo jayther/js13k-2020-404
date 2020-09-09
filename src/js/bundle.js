@@ -2041,9 +2041,11 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
       this.x += this.vel.x * dts * collisionTime / this.collIterations;
       this.y += this.vel.y * dts * collisionTime / this.collIterations;
       if (collisionTime < 1) {
-        var dotProd = (this.vel.x / this.collIterations * normalY + this.vel.y / this.collIterations * normalX) * (1 - collisionTime);
-        this.x += dotProd * normalY * dts;
-        this.y += dotProd * normalX * dts;
+        var dotProd = (this.vel.x * normalY + this.vel.y * normalX) * (1 - collisionTime);
+        this.vel.x = dotProd * normalY;
+        this.vel.y = dotProd * normalX;
+        this.x += dotProd * normalY * dts / this.collIterations;
+        this.y += dotProd * normalX * dts / this.collIterations;
       }
       this.updateAABB();
     }
