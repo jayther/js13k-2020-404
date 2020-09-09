@@ -1931,6 +1931,7 @@ function Player(scene, settings) {
   this.prevAabb = new AABB(0, 0, 10, 10);
   this.broadphase = new AABB(0, 0, 10, 10);
   this.speed = 200;
+  this.collIterations = 4;
   this.vel = {
     x: 0,
     y: 0
@@ -1996,7 +1997,7 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
     this.aabb.set(this.x, this.y);
   },
   step: function (dts) {
-    var cells, i, cell, ct, collisionTime = 1, normalX = 0, normalY = 0;
+    var cells, i, cell, ct, collisionTime = 1, normalX = 0, normalY = 0, curCollIteration;
 
     if (this.vel.x || this.vel.y) {
       this.img.angle = JMath.angleFromVec(this.vel);
@@ -2007,45 +2008,47 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
     this.updateVel();
 
     // collide with furniture
-    if (this.collideWithFurniture) {
-      if (cell && cell.room) {
-        if (cell.room.collisionAabbs) {
-          var aabbs = cell.room.collisionAabbs;
-          this.calculateSweptBroadphase(dts);
-          for (i = 0; i < aabbs.length; i += 1) {
-            // collide with collisionAAbbs
-            ct = this.maybeSweptCollideWith(aabbs[i], dts);
-            if (ct < collisionTime) {
-              collisionTime = ct;
-              normalX = this.normal.x;
-              normalY = this.normal.y;
-            }
-          }
-        }
-        if (cell.room.furniture) {
-          var furniture = cell.room.furniture, needsMail = false;
-          for (i = 0; i < furniture.length; i += 1) {
-            // mail time
-            if (furniture[i].type === World.furnitureTypes.desk || furniture[i].type === World.furnitureTypes.doubleDesk) {
-              var desk = furniture[i];
-              if (desk.needsMail && desk.mailAabb.intersectsWith(this.aabb)) {
-                desk.mailDelivered(this);
+    for (curCollIteration = 0; curCollIteration < this.collIterations; curCollIteration += 1) {
+      if (this.collideWithFurniture) {
+        if (cell && cell.room) {
+          if (cell.room.collisionAabbs) {
+            var aabbs = cell.room.collisionAabbs;
+            this.calculateSweptBroadphase(dts);
+            for (i = 0; i < aabbs.length; i += 1) {
+              // collide with collisionAAbbs
+              ct = this.maybeSweptCollideWith(aabbs[i], dts);
+              if (ct < collisionTime) {
+                collisionTime = ct;
+                normalX = this.normal.x;
+                normalY = this.normal.y;
               }
-              needsMail = needsMail || desk.needsMail;
             }
           }
-          cell.room.needsMail = needsMail;
+          if (cell.room.furniture) {
+            var furniture = cell.room.furniture, needsMail = false;
+            for (i = 0; i < furniture.length; i += 1) {
+              // mail time
+              if (furniture[i].type === World.furnitureTypes.desk || furniture[i].type === World.furnitureTypes.doubleDesk) {
+                var desk = furniture[i];
+                if (desk.needsMail && desk.mailAabb.intersectsWith(this.aabb)) {
+                  desk.mailDelivered(this);
+                }
+                needsMail = needsMail || desk.needsMail;
+              }
+            }
+            cell.room.needsMail = needsMail;
+          }
         }
       }
+      this.x += this.vel.x * dts * collisionTime / this.collIterations;
+      this.y += this.vel.y * dts * collisionTime / this.collIterations;
+      if (collisionTime < 1) {
+        var dotProd = (this.vel.x / this.collIterations * normalY + this.vel.y / this.collIterations * normalX) * (1 - collisionTime);
+        this.x += dotProd * normalY * dts;
+        this.y += dotProd * normalX * dts;
+      }
+      this.updateAABB();
     }
-    this.x += this.vel.x * dts * collisionTime;
-    this.y += this.vel.y * dts * collisionTime;
-    if (collisionTime < 1) {
-      var dotProd = (this.vel.x * normalY + this.vel.y * normalX) * (1 - collisionTime);
-      this.x += dotProd * normalY * dts;
-      this.y += dotProd * normalX * dts;
-    }
-    this.updateAABB();
     
     // player collision with cells
     if (this.collideWithWalls) {
@@ -2172,7 +2175,7 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
     return entryTime;
   },
   calculateSweptBroadphase: function (dts) {
-    var dx = this.vel.x * dts, dy = this.vel.y * dts;
+    var dx = this.vel.x * dts / this.collIterations, dy = this.vel.y * dts / this.collIterations;
     var left = this.vel.x > 0 ? this.aabb.x - this.aabb.hw : this.aabb.x - this.aabb.hw + dx,
       top = this.vel.y > 0 ? this.aabb.y - this.aabb.hh : this.aabb.y - this.aabb.hh + dy,
       right = this.vel.x > 0 ? this.aabb.x + this.aabb.hw + dx : this.aabb.x + this.aabb.hw,
