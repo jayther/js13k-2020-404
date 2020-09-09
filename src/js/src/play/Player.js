@@ -126,6 +126,7 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
         this.vel.y = dotProd * normalX;
         this.x += dotProd * normalY * dts / this.collIterations;
         this.y += dotProd * normalX * dts / this.collIterations;
+        console.log(curCollIteration, this.broadphase.hw, this.broadphase.hh);
       }
       this.updateAABB();
     }
