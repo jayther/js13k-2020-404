@@ -74,61 +74,71 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
     this.aabb.set(this.x, this.y);
   },
   step: function (dts) {
-    var cells, i, cell, ct, collisionTime = 1, normalX = 0, normalY = 0, curCollIteration;
-
-    if (this.vel.x || this.vel.y) {
-      this.img.angle = JMath.angleFromVec(this.vel);
-    }
+    var cells, i, cell, ct, collisionTime = 1,
+    normalX = 0, normalY = 0, curCollIteration,
+    dotProd;
 
     cell = this.world.getCellFromPos(this.x, this.y);
 
     this.updateVel();
 
+    if (this.vel.x || this.vel.y) {
+      this.img.angle = JMath.angleFromVec(this.vel);
+    }
+
     // collide with furniture
+    var aabbs = null;
+    if (this.collideWithFurniture && cell && cell.room && cell.room.collisionAabbs) {
+      aabbs = cell.room.collisionAabbs;
+    }
+    // calculate collision multiple times per step via smaller positional steps
     for (curCollIteration = 0; curCollIteration < this.collIterations; curCollIteration += 1) {
-      if (this.collideWithFurniture) {
-        if (cell && cell.room) {
-          if (cell.room.collisionAabbs) {
-            collisionTime = 1;
-            var aabbs = cell.room.collisionAabbs;
-            this.calculateSweptBroadphase(dts);
-            for (i = 0; i < aabbs.length; i += 1) {
-              // collide with collisionAAbbs
-              ct = this.maybeSweptCollideWith(aabbs[i], dts);
-              if (ct < collisionTime) {
-                collisionTime = ct;
-                normalX = this.normal.x;
-                normalY = this.normal.y;
-              }
-            }
-          }
-          if (cell.room.furniture) {
-            var furniture = cell.room.furniture, needsMail = false;
-            for (i = 0; i < furniture.length; i += 1) {
-              // mail time
-              if (furniture[i].type === World.furnitureTypes.desk || furniture[i].type === World.furnitureTypes.doubleDesk) {
-                var desk = furniture[i];
-                if (desk.needsMail && desk.mailAabb.intersectsWith(this.aabb)) {
-                  desk.mailDelivered(this);
-                }
-                needsMail = needsMail || desk.needsMail;
-              }
-            }
-            cell.room.needsMail = needsMail;
+      collisionTime = 1;
+      if (aabbs) {
+        this.calculateSweptBroadphase(dts);
+        for (i = 0; i < aabbs.length; i += 1) {
+          // collide with collisionAAbbs
+          ct = this.maybeSweptCollideWith(aabbs[i], dts);
+          // use earliest collision
+          if (ct < collisionTime) {
+            collisionTime = ct;
+            normalX = this.normal.x;
+            normalY = this.normal.y;
           }
         }
       }
       this.x += this.vel.x * dts * collisionTime / this.collIterations;
       this.y += this.vel.y * dts * collisionTime / this.collIterations;
       if (collisionTime < 1) {
-        var dotProd = (this.vel.x * normalY + this.vel.y * normalX) * (1 - collisionTime);
+        // slide for next iteration
+        dotProd = (this.vel.x * normalY + this.vel.y * normalX) * (1 - collisionTime);
         this.vel.x = dotProd * normalY;
         this.vel.y = dotProd * normalX;
-        this.x += dotProd * normalY * dts / this.collIterations;
-        this.y += dotProd * normalX * dts / this.collIterations;
-        console.log(curCollIteration, this.broadphase.hw, this.broadphase.hh);
       }
       this.updateAABB();
+    }
+
+    if (collisionTime < 1) {
+      // slide remaining
+      dotProd = (this.vel.x * normalY + this.vel.y * normalX) * (1 - collisionTime);
+      this.x += dotProd * normalY * dts / this.collIterations;
+      this.y += dotProd * normalX * dts / this.collIterations;
+      this.updateAABB();
+    }
+
+    if (cell && cell.room && cell.room.furniture) {
+      var furniture = cell.room.furniture, needsMail = false;
+      for (i = 0; i < furniture.length; i += 1) {
+        // mail time
+        if (furniture[i].type === World.furnitureTypes.desk || furniture[i].type === World.furnitureTypes.doubleDesk) {
+          var desk = furniture[i];
+          if (desk.needsMail && desk.mailAabb.intersectsWith(this.aabb)) {
+            desk.mailDelivered(this);
+          }
+          needsMail = needsMail || desk.needsMail;
+        }
+      }
+      cell.room.needsMail = needsMail;
     }
     
     // player collision with cells
@@ -223,16 +233,16 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
       xEntry = -Number.MAX_VALUE;
       xExit = Number.MAX_VALUE;
     } else {
-      xEntry = xInvEntry / (this.vel.x * dts);
-      xExit = xInvExit / (this.vel.x * dts);
+      xEntry = xInvEntry / (this.vel.x * dts / this.collIterations);
+      xExit = xInvExit / (this.vel.x * dts / this.collIterations);
     }
 
     if (this.vel.y === 0) {
       yEntry = -Number.MAX_VALUE;
       yExit = Number.MAX_VALUE;
     } else {
-      yEntry = yInvEntry / (this.vel.y * dts);
-      yExit = yInvExit / (this.vel.y * dts);
+      yEntry = yInvEntry / (this.vel.y * dts / this.collIterations);
+      yExit = yInvExit / (this.vel.y * dts / this.collIterations);
     }
 
     var entryTime = Math.max(xEntry, yEntry),
