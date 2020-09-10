@@ -1412,6 +1412,8 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       collisionDesksPair = this.generatePrivateOffice(bounds, room);
     } else if (room.type === World.roomTypes.officeBullpen) {
       collisionDesksPair = this.generateBullpenOffice(bounds, room);
+    } else if (room.type === World.roomTypes.lobby) {
+      collisionDesksPair = this.generateLobby(bounds, room);
     }
 
     if (collisionDesksPair) {
@@ -1558,52 +1560,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     return [collisionAabbs, furniture];
   },
   generatePrivateOffice: function (bounds, room) {
-    var facing = 0, i, f, pool = [];
-
-    // determine orientation of private desk
-    // single door wall
-    for (i = 1; i <= 8 && !facing; i <<= 1) {
-      if (i === room.doorWallFlags) {
-        facing = i;
-      } else if ((room.doorWallFlags & i) > 0) {
-        pool.push(i); // for random direction later
-      }
-    }
-    // opposing door walls
-    if (!facing) {
-      if (room.doorWallFlags === 5) {
-        // 0101
-        facing = Random.pick([1, 4]);
-      } else if (room.doorWallFlags === 10) {
-        // 1010
-        facing = Random.pick([2, 8]);
-      }
-    }
-    // three door walls
-    if (!facing) {
-      for (f = 1; f <= 8 && !facing; f <<= 1) {
-        i = f;
-        // upper digit
-        if ((f << 1) > 8) {
-          i |= 1; // wrap
-        } else {
-          i |= f << 1;
-        }
-        // lower digit
-        if ((f >> 1) < 1) {
-          i |= 8; // wrap
-        } else {
-          i |= f >> 1;
-        }
-        if (i === room.doorWallFlags) {
-          facing = f;
-        }        
-      }
-    }
-    // any other door wall configs
-    if (!facing) {
-      facing = Random.pick(pool);
-    }
+    var facing = this.determinePrevailingFacing(room);
 
     var deskSettings = World.privateDesk,
       fullDepth = deskSettings.depth + deskSettings.chairSize / 2, // depth + chair slightly in
@@ -1849,6 +1806,66 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     // }, this);
 
     return [collisionAabbs, furniture];
+  },
+  generateLobby: function (bounds, room) {
+    var facing = this.determinePrevailingFacing(room);
+    
+    // TODO lobby desk(s)
+
+    // TODO chairs
+
+    var collisionAabbs = [], furniture = [];
+
+    return [collisionAabbs, furniture];
+  },
+  determinePrevailingFacing: function (room) {
+    var facing = 0, i, f, pool = [];
+
+    // determine orientation of private desk
+    // single door wall
+    for (i = 1; i <= 8 && !facing; i <<= 1) {
+      if (i === room.doorWallFlags) {
+        facing = i;
+      } else if ((room.doorWallFlags & i) > 0) {
+        pool.push(i); // for random direction later
+      }
+    }
+    // opposing door walls
+    if (!facing) {
+      if (room.doorWallFlags === 5) {
+        // 0101
+        facing = Random.pick([1, 4]);
+      } else if (room.doorWallFlags === 10) {
+        // 1010
+        facing = Random.pick([2, 8]);
+      }
+    }
+    // three door walls
+    if (!facing) {
+      for (f = 1; f <= 8 && !facing; f <<= 1) {
+        i = f;
+        // upper digit
+        if ((f << 1) > 8) {
+          i |= 1; // wrap
+        } else {
+          i |= f << 1;
+        }
+        // lower digit
+        if ((f >> 1) < 1) {
+          i |= 8; // wrap
+        } else {
+          i |= f >> 1;
+        }
+        if (i === room.doorWallFlags) {
+          facing = f;
+        }        
+      }
+    }
+    // any other door wall configs
+    if (!facing) {
+      facing = Random.pick(pool);
+    }
+    return facing;
   },
   createCell: function (x, y, type, room) {
     var color = null,
