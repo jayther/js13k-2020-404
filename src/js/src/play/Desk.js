@@ -32,6 +32,7 @@ function Desk(type, x, y, w, h, chairSize, room) {
   this.redirectFrom = -1;
   this.world = null;
   this.scene = null;
+  this.deliveredCallback = null;
   this.redirectDeskCallback = null;
   this.prematureDeliveredCallback = null;
 }
@@ -104,6 +105,9 @@ Desk.prototype = {
       }
     } else if (this.redirectDeskCallback) {
       this.redirectDeskCallback(this);
+    }
+    if (this.deliveredCallback) {
+      this.deliveredCallback(this);
     }
   }
 };

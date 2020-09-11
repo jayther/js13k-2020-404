@@ -1,36 +1,36 @@
-function KB(keyCode, press, release) {
-  var key = {
-    code: keyCode,
-    isDown: false,
-    press: press,
-    release: release
-  };
-  key.downHandler = function (e) {
-    if (e.keyCode === key.code) {
-      if (!key.isDown && key.press) {
-        key.press();
-      }
-      key.isDown = true;
+function KB(press, release) {
+  var keys = {};
+  var kb = {};
+  kb.downHandler = function (e) {
+    var k = e.keyCode;
+    if (!has(keys, k)) {
+      keys[k] = false;
     }
+    if (!keys[k]) {
+      press(k);
+    }
+    keys[k] = true;
     e.preventDefault();
   };
-  key.upHandler = function (e) {
-    if (e.keyCode === key.code) {
-      if (key.isDown && key.release) {
-        key.release();
-      }
-      key.isDown = false;
+  kb.upHandler = function (e) {
+    var k = e.keyCode;
+    if (!has(keys, k)) {
+      keys[k] = false;
     }
+    if (keys[k]) {
+      release(k);
+    }
+    keys[k] = false;
     e.preventDefault();
   };
-  key.destroy = function () {
-    window.removeEventListener('keydown', key.downHandler, false);
-    window.removeEventListener('keyup', key.upHandler, false);
+  kb.destroy = function () {
+    window.removeEventListener('keydown', kb.downHandler, false);
+    window.removeEventListener('keyup', kb.upHandler, false);
   };
-  window.addEventListener('keydown', key.downHandler, false);
-  window.addEventListener('keyup', key.upHandler, false);
+  window.addEventListener('keydown', kb.downHandler, false);
+  window.addEventListener('keyup', kb.upHandler, false);
   
-  return key;
+  return kb;
 }
 
 KB.keys = {
@@ -38,6 +38,8 @@ KB.keys = {
   w: 87,
   s: 83,
   d: 68,
+  z: 90,
+  q: 81,
   left: 37,
   up: 38,
   right: 39,

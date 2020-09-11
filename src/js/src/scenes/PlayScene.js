@@ -38,6 +38,17 @@ function PlayScene() {
   });
   this.addChild(this.pointerLayer);
 
+  this.mailLeftText = new DisplayText({
+    text: '...',
+    x: 5,
+    y: 5,
+    align: 'left',
+    baseline: 'top',
+    font: '16px Arial',
+    color: '#ffffff'
+  });
+  this.addChild(this.mailLeftText);
+
   this.generateMailableDesks();
   
   this.seeWholeWorld = false;
@@ -66,30 +77,19 @@ function PlayScene() {
   this.player.updateAABB();
   
   this.keys = [];
-  this.aKey = KB(KB.keys.a, function () {
-    player.addDirection(World.sides.left);
-  }, function () {
-    player.removeDirection(World.sides.left);
+  this.dirKeyMap = {};
+  this.dirKeyMap[World.sides.left] = [KB.keys.a, KB.keys.q, KB.keys.left];
+  this.dirKeyMap[World.sides.top] = [KB.keys.w, KB.keys.z, KB.keys.up];
+  this.dirKeyMap[World.sides.right] = [KB.keys.d, KB.keys.right];
+  this.dirKeyMap[World.sides.bottom] = [KB.keys.s, KB.keys.down];
+  var keyDirMap = {};
+  Object.entries(this.dirKeyMap).forEach(function (pair) {
+    pair[1].forEach(function (key) {
+      keyDirMap[key] = pair[0];
+    });
   });
-  this.keys.push(this.aKey);
-  this.sKey = KB(KB.keys.s, function () {
-    player.addDirection(World.sides.bottom);
-  }, function () {
-    player.removeDirection(World.sides.bottom);
-  });
-  this.keys.push(this.sKey);
-  this.dKey = KB(KB.keys.d, function () {
-    player.addDirection(World.sides.right);
-  }, function () {
-    player.removeDirection(World.sides.right);
-  });
-  this.keys.push(this.dKey);
-  this.wKey = KB(KB.keys.w, function () {
-    player.addDirection(World.sides.top);
-  }, function () {
-    player.removeDirection(World.sides.top);
-  });
-  this.keys.push(this.wKey);
+  this.keyDirMap = keyDirMap;
+  this.kb = KB(this.keyDown.bind(this), this.keyUp.bind(this));
 
   // this.addChild(new DisplayImg({
   //   img: Resources.loadedImgs.roomTile,
@@ -147,10 +147,16 @@ function PlayScene() {
   }
 }
 PlayScene.prototype = extendPrototype(Scene.prototype, {
+  keyDown: function (keyCode) {
+    if (!this.keyDirMap[keyCode]) return;
+    this.player.addDirection(this.keyDirMap[keyCode]);
+  },
+  keyUp: function (keyCode) {
+    if (!this.keyDirMap[keyCode]) return;
+    this.player.removeDirection(this.keyDirMap[keyCode]);
+  },
   destroy: function () {
-    this.keys.forEach(function (key) {
-      key.destroy();
-    });
+    this.kb.destroy();
   },
   cycle: function (dts) {
     this.player.step(dts);
@@ -230,16 +236,23 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
       redirectedToDesks.push(redirectTo);
       redirectFrom.redirectDeskCallback = this.deskNeedsRedirect.bind(this);
       redirectTo.prematureDeliveredCallback = this.deskDeliveredPrematurely.bind(this);
+      redirectTo.deliveredCallback = this.deskDelivered.bind(this);
     }
 
     mailableDesks.forEach(initMailableDesk);
     redirectedFromDesks.forEach(initMailableDesk);
     redirectedToDesks.forEach(initMailableDesk);
 
+    mailableDesks.forEach(function (desk) {
+      desk.deliveredCallback = this.deskDelivered.bind(this);
+    }, this);
+
     this.mailableRooms = mailableRooms;
     this.mailableDesks = mailableDesks;
     this.redirectedFromDesks = redirectedFromDesks;
     this.redirectedToDesks = redirectedToDesks;
+    this.allMailableDesks = mailableDesks.concat(redirectedToDesks);
+    this.mailLeftText.text = 'Mail left: ' + this.allMailableDesks.length;
 
     // debug
     this.mailableDesks.forEach(function (desk) {
@@ -257,6 +270,17 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
         rect.color = 'gray';
       });
     });
+  },
+  deskDelivered: function (desk) {
+    console.log('delivered to', desk.id);
+    var mailLeft = this.allMailableDesks.reduce(function (accumulator, d) {
+      return accumulator + (d.needsMail ? 1 : 0);
+    }, 0);
+    this.mailLeftText.text = 'Mail left: ' + mailLeft;
+
+    if (mailLeft <= 0) {
+      console.log('finished!');
+    }
   },
   deskNeedsRedirect: function (desk) {
 

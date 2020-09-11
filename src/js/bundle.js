@@ -59,39 +59,39 @@ var DOM = (function () {
   };
 }());
 
-function KB(keyCode, press, release) {
-  var key = {
-    code: keyCode,
-    isDown: false,
-    press: press,
-    release: release
-  };
-  key.downHandler = function (e) {
-    if (e.keyCode === key.code) {
-      if (!key.isDown && key.press) {
-        key.press();
-      }
-      key.isDown = true;
+function KB(press, release) {
+  var keys = {};
+  var kb = {};
+  kb.downHandler = function (e) {
+    var k = e.keyCode;
+    if (!has(keys, k)) {
+      keys[k] = false;
     }
+    if (!keys[k]) {
+      press(k);
+    }
+    keys[k] = true;
     e.preventDefault();
   };
-  key.upHandler = function (e) {
-    if (e.keyCode === key.code) {
-      if (key.isDown && key.release) {
-        key.release();
-      }
-      key.isDown = false;
+  kb.upHandler = function (e) {
+    var k = e.keyCode;
+    if (!has(keys, k)) {
+      keys[k] = false;
     }
+    if (keys[k]) {
+      release(k);
+    }
+    keys[k] = false;
     e.preventDefault();
   };
-  key.destroy = function () {
-    window.removeEventListener('keydown', key.downHandler, false);
-    window.removeEventListener('keyup', key.upHandler, false);
+  kb.destroy = function () {
+    window.removeEventListener('keydown', kb.downHandler, false);
+    window.removeEventListener('keyup', kb.upHandler, false);
   };
-  window.addEventListener('keydown', key.downHandler, false);
-  window.addEventListener('keyup', key.upHandler, false);
+  window.addEventListener('keydown', kb.downHandler, false);
+  window.addEventListener('keyup', kb.upHandler, false);
   
-  return key;
+  return kb;
 }
 
 KB.keys = {
@@ -99,6 +99,8 @@ KB.keys = {
   w: 87,
   s: 83,
   d: 68,
+  z: 90,
+  q: 81,
   left: 37,
   up: 38,
   right: 39,
@@ -384,7 +386,9 @@ function DisplayItem(options) {
     visible: true,
     alpha: 1,
     anchorX: 0,
-    anchorY: 0
+    anchorY: 0,
+    offsetX: 0,
+    offsetY: 0
   }, options || {});
   this.parent = null;
   this.x = opts.x;
@@ -396,6 +400,8 @@ function DisplayItem(options) {
   this.alpha = opts.alpha;
   this.anchorX = opts.anchorX;
   this.anchorY = opts.anchorY;
+  this.offsetX = opts.offsetX;
+  this.offsetY = opts.offsetY;
 }
 DisplayItem.prototype = {
   _render: function (context) {
@@ -411,12 +417,15 @@ DisplayItem.prototype = {
         context.rotate(this.angle);
       }
       if (this.anchorX || this.anchorY) {
-        context.translate(-this.anchorX / this.scaleX, -this.anchorY / this.scaleY);
+        context.translate(-this.anchorX, -this.anchorY);
       }
       if (this.alpha < 1) {
         context.globalAlpha *= this.alpha;
       }
       this.render(context);
+      if (this.offsetX || this.offsetY) {
+        context.translate(this.offsetX, this.offsetY);
+      }
       context.restore();
     }
   },
@@ -732,6 +741,7 @@ function Desk(type, x, y, w, h, chairSize, room) {
   this.redirectFrom = -1;
   this.world = null;
   this.scene = null;
+  this.deliveredCallback = null;
   this.redirectDeskCallback = null;
   this.prematureDeliveredCallback = null;
 }
@@ -804,6 +814,9 @@ Desk.prototype = {
       }
     } else if (this.redirectDeskCallback) {
       this.redirectDeskCallback(this);
+    }
+    if (this.deliveredCallback) {
+      this.deliveredCallback(this);
     }
   }
 };
@@ -1983,8 +1996,8 @@ function Player(scene, settings) {
     img: Resources.loadedImgs.robot,
     w: 19,
     h: 20,
-    anchorX: 10,
-    anchorY: 10
+    anchorX: 74,
+    anchorY: 77
   });
   this.addChild(img);
   this.img = img;
@@ -2298,6 +2311,17 @@ function PlayScene() {
   });
   this.addChild(this.pointerLayer);
 
+  this.mailLeftText = new DisplayText({
+    text: '...',
+    x: 5,
+    y: 5,
+    align: 'left',
+    baseline: 'top',
+    font: '16px Arial',
+    color: '#ffffff'
+  });
+  this.addChild(this.mailLeftText);
+
   this.generateMailableDesks();
   
   this.seeWholeWorld = false;
@@ -2326,30 +2350,19 @@ function PlayScene() {
   this.player.updateAABB();
   
   this.keys = [];
-  this.aKey = KB(KB.keys.a, function () {
-    player.addDirection(World.sides.left);
-  }, function () {
-    player.removeDirection(World.sides.left);
+  this.dirKeyMap = {};
+  this.dirKeyMap[World.sides.left] = [KB.keys.a, KB.keys.q, KB.keys.left];
+  this.dirKeyMap[World.sides.top] = [KB.keys.w, KB.keys.z, KB.keys.up];
+  this.dirKeyMap[World.sides.right] = [KB.keys.d, KB.keys.right];
+  this.dirKeyMap[World.sides.bottom] = [KB.keys.s, KB.keys.down];
+  var keyDirMap = {};
+  Object.entries(this.dirKeyMap).forEach(function (pair) {
+    pair[1].forEach(function (key) {
+      keyDirMap[key] = pair[0];
+    });
   });
-  this.keys.push(this.aKey);
-  this.sKey = KB(KB.keys.s, function () {
-    player.addDirection(World.sides.bottom);
-  }, function () {
-    player.removeDirection(World.sides.bottom);
-  });
-  this.keys.push(this.sKey);
-  this.dKey = KB(KB.keys.d, function () {
-    player.addDirection(World.sides.right);
-  }, function () {
-    player.removeDirection(World.sides.right);
-  });
-  this.keys.push(this.dKey);
-  this.wKey = KB(KB.keys.w, function () {
-    player.addDirection(World.sides.top);
-  }, function () {
-    player.removeDirection(World.sides.top);
-  });
-  this.keys.push(this.wKey);
+  this.keyDirMap = keyDirMap;
+  this.kb = KB(this.keyDown.bind(this), this.keyUp.bind(this));
 
   // this.addChild(new DisplayImg({
   //   img: Resources.loadedImgs.roomTile,
@@ -2407,10 +2420,16 @@ function PlayScene() {
   }
 }
 PlayScene.prototype = extendPrototype(Scene.prototype, {
+  keyDown: function (keyCode) {
+    if (!this.keyDirMap[keyCode]) return;
+    this.player.addDirection(this.keyDirMap[keyCode]);
+  },
+  keyUp: function (keyCode) {
+    if (!this.keyDirMap[keyCode]) return;
+    this.player.removeDirection(this.keyDirMap[keyCode]);
+  },
   destroy: function () {
-    this.keys.forEach(function (key) {
-      key.destroy();
-    });
+    this.kb.destroy();
   },
   cycle: function (dts) {
     this.player.step(dts);
@@ -2490,16 +2509,23 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
       redirectedToDesks.push(redirectTo);
       redirectFrom.redirectDeskCallback = this.deskNeedsRedirect.bind(this);
       redirectTo.prematureDeliveredCallback = this.deskDeliveredPrematurely.bind(this);
+      redirectTo.deliveredCallback = this.deskDelivered.bind(this);
     }
 
     mailableDesks.forEach(initMailableDesk);
     redirectedFromDesks.forEach(initMailableDesk);
     redirectedToDesks.forEach(initMailableDesk);
 
+    mailableDesks.forEach(function (desk) {
+      desk.deliveredCallback = this.deskDelivered.bind(this);
+    }, this);
+
     this.mailableRooms = mailableRooms;
     this.mailableDesks = mailableDesks;
     this.redirectedFromDesks = redirectedFromDesks;
     this.redirectedToDesks = redirectedToDesks;
+    this.allMailableDesks = mailableDesks.concat(redirectedToDesks);
+    this.mailLeftText.text = 'Mail left: ' + this.allMailableDesks.length;
 
     // debug
     this.mailableDesks.forEach(function (desk) {
@@ -2517,6 +2543,17 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
         rect.color = 'gray';
       });
     });
+  },
+  deskDelivered: function (desk) {
+    console.log('delivered to', desk.id);
+    var mailLeft = this.allMailableDesks.reduce(function (accumulator, d) {
+      return accumulator + (d.needsMail ? 1 : 0);
+    }, 0);
+    this.mailLeftText.text = 'Mail left: ' + mailLeft;
+
+    if (mailLeft <= 0) {
+      console.log('finished!');
+    }
   },
   deskNeedsRedirect: function (desk) {
 
@@ -2575,6 +2612,206 @@ function createPointer(color) {
   return con;
 }
 
+function MainMenuScene() {
+  Scene.apply(this, arguments);
+
+  this.time = 0;
+  this.period = 2;
+
+  // bg
+  this.addChild(new DisplayRect({
+    w: SETTINGS.width,
+    h: SETTINGS.height,
+    color: '#777777'
+  }));
+
+  this.robot = new DisplayImg({
+    img: Resources.loadedImgs.robot,
+    x: SETTINGS.width / 2,
+    y: 150,
+    w: 148,
+    h: 154,
+    anchorX: 74,
+    anchorY: 77
+  });
+  this.addChild(this.robot);
+
+  var mainTitle = new DisplayText({
+    text: 'Employee Not Found',
+    font: '32px Arial',
+    x: SETTINGS.width / 2,
+    y: 50,
+    align: 'center',
+    baseline: 'middle',
+    color: 'white'
+  });
+  this.addChild(mainTitle);
+
+  var tutorialKeyCon = new DisplayContainer({
+    x: SETTINGS.width / 2,
+    y: 270
+  });
+  this.addChild(tutorialKeyCon);
+
+  var tutorialKeys = this.tutorialKeys = [
+    new TutorialKey(0, 0, 'W', 0, this.main.animManager),
+    new TutorialKey(-45, 45, 'A', 0.125, this.main.animManager),
+    new TutorialKey(0, 45, 'S', 0.25, this.main.animManager),
+    new TutorialKey(45, 45, 'D', 0.375, this.main.animManager)
+  ];
+
+  this.tutorialKeys.forEach(function (key) {
+    tutorialKeyCon.addChild(key.displayItem);
+    key.start();
+  });
+
+  var keySets = [
+    ['W', 'A', 'S', 'D'],
+    ['↑', '←', '↓', '→'],
+    ['Z', 'Q', 'S', 'D']
+  ];
+  var keySetIndex = 0;
+
+  this.keySetInterval = setInterval(function () {
+    keySetIndex += 1;
+    if (keySetIndex >= keySets.length) {
+      keySetIndex = 0;
+    }
+    tutorialKeys.forEach(function (key, index) {
+      key.keyTopKey.text = keySets[keySetIndex][index];
+    });
+  }, 1000);
+
+  var startKeys = [
+    KB.keys.a, KB.keys.w, KB.keys.s, KB.keys.d,
+    KB.keys.q, KB.keys.z,
+    KB.keys.left, KB.keys.up, KB.keys.right, KB.keys.down
+  ];
+
+  this.kb = KB(function () {
+
+  }, function (keyCode) {
+    var start = startKeys.some(function (k) {
+      return k === keyCode;
+    });
+    if (start) {
+      this.main.setScene(new PlayScene(this.main));
+    }
+  }.bind(this));
+
+  this.addSteppable(this.cycle.bind(this));
+}
+
+MainMenuScene.prototype = extendPrototype(Scene.prototype, {
+  destroy: function () {
+    this.tutorialKeys.forEach(function (key) {
+      key.stop();
+    });
+    clearInterval(this.keySetInterval);
+    this.kb.destroy();
+  },
+  cycle: function (dts) {
+    this.time += dts;
+
+    var current = this.time % this.period,
+      ratio = current / this.period;
+    
+    this.robot.scaleX = 1 + Math.cos(ratio * Math.PI * 2) * 0.05;
+    this.robot.scaleY = 1 + Math.sin(ratio * Math.PI * 2) * 0.05;
+  }
+});
+
+function TutorialKey(x, y, key, delay, animManager) {
+  var container = new DisplayContainer({
+    x: x,
+    y: y
+  });
+  this.displayItem = container;
+  this.animEnabled = false;
+  this.delay = delay || 0;
+  this.animManager = animManager;
+
+  var keySide = new DisplayRect({
+    x: -20,
+    y: -5,
+    w: 40,
+    h: 25,
+    color: '#cccccc',
+    rounded: 5
+  });
+  container.addChild(keySide);
+  this.keySide = keySide;
+
+  var keyTop = new DisplayContainer({
+    x: 0,
+    y: 5
+  });
+  this.keyTop = keyTop;
+  container.addChild(keyTop);
+
+  var keyTopRect = new DisplayRect({
+    x: -20,
+    y: -40,
+    w: 40,
+    h: 40,
+    color: '#ffffff',
+    rounded: 5,
+  });
+  keyTop.addChild(keyTopRect);
+  
+  var keyTopKey = new DisplayText({
+    x: 0,
+    y: -20,
+    text: key,
+    font: '20px Arial',
+    color: 'black',
+    align: 'center',
+    baseline: 'middle'
+  });
+  keyTop.addChild(keyTopKey);
+  this.keyTopKey = keyTopKey;
+
+  this.anims = [];
+}
+
+TutorialKey.prototype = {
+  start: function () {
+    this.animEnabled = true;
+    setTimeout(this.startAnim.bind(this), this.delay * 1000);
+  },
+  startAnim: function () {
+    if (!this.animEnabled) { return false; }
+    var anim1, anim2;
+    anim1 = new Anim({
+      object: this.keyTop,
+      property: 'y',
+      from: 5,
+      to: 15,
+      duration: 0.5,
+      timeFunction: Anim.easingFunctions.easeInCubic,
+      onEnd: function () {
+        this.animManager.add(anim2);
+      }.bind(this)
+    });
+    anim2 = new Anim({
+      object: this.keyTop,
+      property: 'y',
+      from: 15,
+      to: 5,
+      duration: 0.5,
+      timeFunction: Anim.easingFunctions.easeInCubic,
+      onEnd: this.startAnim.bind(this)
+    });
+    this.animManager.add(anim1);
+  },
+  stop: function () {
+    this.animEnabled = false;
+    this.anims.forEach(function (anim) {
+      anim.cancel();
+    });
+  }
+};
+
 function PreloadScene() {
   Scene.apply(this, arguments);
   this.imgs = [];
@@ -2588,7 +2825,6 @@ function PreloadScene() {
     baseline: 'middle',
     font: '32px Arial'
   });
-  var inc = 0;
 
   // bg
   this.addChild(new DisplayRect({
@@ -2632,7 +2868,7 @@ PreloadScene.prototype = extendPrototype(Scene.prototype, {
     }, this);
 
     this.finished = true;
-    this.main.setScene(new PlayScene(this.main));
+    this.main.setScene(new MainMenuScene(this.main));
   }
 });
 

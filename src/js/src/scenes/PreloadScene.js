@@ -11,7 +11,6 @@ function PreloadScene() {
     baseline: 'middle',
     font: '32px Arial'
   });
-  var inc = 0;
 
   // bg
   this.addChild(new DisplayRect({
@@ -55,6 +54,6 @@ PreloadScene.prototype = extendPrototype(Scene.prototype, {
     }, this);
 
     this.finished = true;
-    this.main.setScene(new PlayScene(this.main));
+    this.main.setScene(new MainMenuScene(this.main));
   }
 });

@@ -76,6 +76,7 @@
         
         "src/js/src/scenes/Scene.js",
         "src/js/src/scenes/PlayScene.js",
+        "src/js/src/scenes/MainMenuScene.js",
         "src/js/src/scenes/PreloadScene.js",
         
         "src/js/src/main.js"
@@ -183,6 +184,8 @@
               "maxMissingPeople",
               "x",
               "y",
+              "w",
+              "h",
               "angle"
             ]
           }

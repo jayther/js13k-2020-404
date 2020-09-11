@@ -27,8 +27,8 @@ function Player(scene, settings) {
     img: Resources.loadedImgs.robot,
     w: 19,
     h: 20,
-    anchorX: 10,
-    anchorY: 10
+    anchorX: 74,
+    anchorY: 77
   });
   this.addChild(img);
   this.img = img;

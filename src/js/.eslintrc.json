@@ -29,6 +29,7 @@
     "Player": "writable",
     "Desk": "writable",
     "Scene": "writable",
+    "MainMenuScene": "writable",
     "PlayScene": "writable",
     "PreloadScene": "writable",
     "SETTINGS": "writable",
