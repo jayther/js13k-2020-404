@@ -4,11 +4,19 @@ function DisplayRect(options) {
     w: 0,
     h: 0,
     color: 'black',
-    rounded: 0
+    rounded: 0,
+    fillOffsetX: 0,
+    fillOffsetY: 0,
+    fillScaleX: 1,
+    fillScaleY: 1
   }, options || {});
   this.rounded = opts.rounded;
   this.w = opts.w;
   this.h = opts.h;
+  this.fillOffsetX = opts.fillOffsetX;
+  this.fillOffsetY = opts.fillOffsetY;
+  this.fillScaleX = opts.fillScaleX;
+  this.fillScaleY = opts.fillScaleY;
   this.color = opts.color;
 }
 DisplayRect.prototype = extendPrototype(DisplayItem.prototype, {
@@ -27,9 +35,24 @@ DisplayRect.prototype = extendPrototype(DisplayItem.prototype, {
       context.lineTo(0, rounded);
       context.arcTo(0, 0, rounded, 0, rounded);
       context.closePath();
+      if (this.fillOffsetX || this.fillOffsetY) {
+        context.translate(this.fillOffsetX, this.fillOffsetY);
+      }
+      if (this.fillScaleX !== 1 || this.fillScaleY !== 1) {
+        context.scale(this.fillScaleX, this.fillScaleY);
+      }
       context.fill();
     } else {
-      context.fillRect(0, 0, this.w, this.h);
+      context.beginPath();
+      context.rect(0, 0, this.w, this.h);
+      context.closePath();
+      if (this.fillOffsetX || this.fillOffsetY) {
+        context.translate(this.fillOffsetX, this.fillOffsetY);
+      }
+      if (this.fillScaleX !== 1 || this.fillScaleY !== 1) {
+        context.scale(this.fillScaleX, this.fillScaleY);
+      }
+      context.fill();
     }
   }
 });

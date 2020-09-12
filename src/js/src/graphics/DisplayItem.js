@@ -8,9 +8,7 @@ function DisplayItem(options) {
     visible: true,
     alpha: 1,
     anchorX: 0,
-    anchorY: 0,
-    offsetX: 0,
-    offsetY: 0
+    anchorY: 0
   }, options || {});
   this.parent = null;
   this.x = opts.x;
@@ -22,8 +20,6 @@ function DisplayItem(options) {
   this.alpha = opts.alpha;
   this.anchorX = opts.anchorX;
   this.anchorY = opts.anchorY;
-  this.offsetX = opts.offsetX;
-  this.offsetY = opts.offsetY;
 }
 DisplayItem.prototype = {
   _render: function (context) {
@@ -45,9 +41,6 @@ DisplayItem.prototype = {
         context.globalAlpha *= this.alpha;
       }
       this.render(context);
-      if (this.offsetX || this.offsetY) {
-        context.translate(this.offsetX, this.offsetY);
-      }
       context.restore();
     }
   },

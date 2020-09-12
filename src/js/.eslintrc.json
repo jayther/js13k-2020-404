@@ -27,6 +27,8 @@
     "Room": "writable",
     "World": "writable",
     "Player": "writable",
+    "Mail": "writable",
+    "TutorialKey": "writable",
     "Desk": "writable",
     "Scene": "writable",
     "MainMenuScene": "writable",

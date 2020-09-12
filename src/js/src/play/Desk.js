@@ -60,14 +60,9 @@ Desk.prototype = {
       }
     }, this);
     if (this.redirectTo === -1) {
-      var envelope = new DisplayRect({
+      var envelope = new Mail({
         x: player.x,
         y: player.y,
-        w: 20,
-        h: 10,
-        color: '#eeeeee',
-        anchorX: 10,
-        anchorY: 5,
         angle: Random.range(0, Math.PI * 2)
       });
       this.world.addChild(envelope);

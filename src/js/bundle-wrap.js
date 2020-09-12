@@ -388,9 +388,7 @@ function DisplayItem(options) {
     visible: true,
     alpha: 1,
     anchorX: 0,
-    anchorY: 0,
-    offsetX: 0,
-    offsetY: 0
+    anchorY: 0
   }, options || {});
   this.parent = null;
   this.x = opts.x;
@@ -402,8 +400,6 @@ function DisplayItem(options) {
   this.alpha = opts.alpha;
   this.anchorX = opts.anchorX;
   this.anchorY = opts.anchorY;
-  this.offsetX = opts.offsetX;
-  this.offsetY = opts.offsetY;
 }
 DisplayItem.prototype = {
   _render: function (context) {
@@ -425,9 +421,6 @@ DisplayItem.prototype = {
         context.globalAlpha *= this.alpha;
       }
       this.render(context);
-      if (this.offsetX || this.offsetY) {
-        context.translate(this.offsetX, this.offsetY);
-      }
       context.restore();
     }
   },
@@ -465,11 +458,19 @@ function DisplayRect(options) {
     w: 0,
     h: 0,
     color: 'black',
-    rounded: 0
+    rounded: 0,
+    fillOffsetX: 0,
+    fillOffsetY: 0,
+    fillScaleX: 1,
+    fillScaleY: 1
   }, options || {});
   this.rounded = opts.rounded;
   this.w = opts.w;
   this.h = opts.h;
+  this.fillOffsetX = opts.fillOffsetX;
+  this.fillOffsetY = opts.fillOffsetY;
+  this.fillScaleX = opts.fillScaleX;
+  this.fillScaleY = opts.fillScaleY;
   this.color = opts.color;
 }
 DisplayRect.prototype = extendPrototype(DisplayItem.prototype, {
@@ -488,9 +489,24 @@ DisplayRect.prototype = extendPrototype(DisplayItem.prototype, {
       context.lineTo(0, rounded);
       context.arcTo(0, 0, rounded, 0, rounded);
       context.closePath();
+      if (this.fillOffsetX || this.fillOffsetY) {
+        context.translate(this.fillOffsetX, this.fillOffsetY);
+      }
+      if (this.fillScaleX !== 1 || this.fillScaleY !== 1) {
+        context.scale(this.fillScaleX, this.fillScaleY);
+      }
       context.fill();
     } else {
-      context.fillRect(0, 0, this.w, this.h);
+      context.beginPath();
+      context.rect(0, 0, this.w, this.h);
+      context.closePath();
+      if (this.fillOffsetX || this.fillOffsetY) {
+        context.translate(this.fillOffsetX, this.fillOffsetY);
+      }
+      if (this.fillScaleX !== 1 || this.fillScaleY !== 1) {
+        context.scale(this.fillScaleX, this.fillScaleY);
+      }
+      context.fill();
     }
   }
 });
@@ -771,14 +787,9 @@ Desk.prototype = {
       }
     }, this);
     if (this.redirectTo === -1) {
-      var envelope = new DisplayRect({
+      var envelope = new Mail({
         x: player.x,
         y: player.y,
-        w: 20,
-        h: 10,
-        color: '#eeeeee',
-        anchorX: 10,
-        anchorY: 5,
         angle: Random.range(0, Math.PI * 2)
       });
       this.world.addChild(envelope);
@@ -1410,14 +1421,14 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     }
 
     // debug placeable area
-    var boundRect = new DisplayRect({
-      x: bounds.left,
-      y: bounds.top,
-      w: bounds.right - bounds.left,
-      h: bounds.bottom - bounds.top,
-      color: '#007700'
-    });
-    this.addChild(boundRect);
+    // var boundRect = new DisplayRect({
+    //   x: bounds.left,
+    //   y: bounds.top,
+    //   w: bounds.right - bounds.left,
+    //   h: bounds.bottom - bounds.top,
+    //   color: '#007700'
+    // });
+    // this.addChild(boundRect);
 
     if (room.type === World.roomTypes.officeOpen) {
       collisionDesksPair = this.generateOpenOffice(bounds);
@@ -2250,6 +2261,108 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
   }
 });
 
+function Mail(options) {
+  DisplayRect.call(this, extend({
+    color: '#eeeeee',
+    w: 20,
+    h: 10,
+    anchorX: 10,
+    anchorY: 5
+  }, options || {}));
+}
+
+Mail.prototype = extendPrototype(DisplayRect.prototype, {});
+function TutorialKey(x, y, key, delay, animManager) {
+  var container = new DisplayContainer({
+    x: x,
+    y: y
+  });
+  this.displayItem = container;
+  this.animEnabled = false;
+  this.delay = delay || 0;
+  this.animManager = animManager;
+
+  var keySide = new DisplayRect({
+    x: -20,
+    y: -5,
+    w: 40,
+    h: 25,
+    color: '#cccccc',
+    rounded: 5
+  });
+  container.addChild(keySide);
+  this.keySide = keySide;
+
+  var keyTop = new DisplayContainer({
+    x: 0,
+    y: 5
+  });
+  this.keyTop = keyTop;
+  container.addChild(keyTop);
+
+  var keyTopRect = new DisplayRect({
+    x: -20,
+    y: -40,
+    w: 40,
+    h: 40,
+    color: '#ffffff',
+    rounded: 5,
+  });
+  keyTop.addChild(keyTopRect);
+  
+  var keyTopKey = new DisplayText({
+    x: 0,
+    y: -20,
+    text: key,
+    font: '20px Arial',
+    color: 'black',
+    align: 'center',
+    baseline: 'middle'
+  });
+  keyTop.addChild(keyTopKey);
+  this.keyTopKey = keyTopKey;
+
+  this.anims = [];
+}
+
+TutorialKey.prototype = {
+  start: function () {
+    this.animEnabled = true;
+    setTimeout(this.startAnim.bind(this), this.delay * 1000);
+  },
+  startAnim: function () {
+    if (!this.animEnabled) { return false; }
+    var anim1, anim2;
+    anim1 = new Anim({
+      object: this.keyTop,
+      property: 'y',
+      from: 5,
+      to: 15,
+      duration: 0.5,
+      timeFunction: Anim.easingFunctions.easeInCubic,
+      onEnd: function () {
+        this.animManager.add(anim2);
+      }.bind(this)
+    });
+    anim2 = new Anim({
+      object: this.keyTop,
+      property: 'y',
+      from: 15,
+      to: 5,
+      duration: 0.5,
+      timeFunction: Anim.easingFunctions.easeInCubic,
+      onEnd: this.startAnim.bind(this)
+    });
+    this.animManager.add(anim1);
+  },
+  stop: function () {
+    this.animEnabled = false;
+    this.anims.forEach(function (anim) {
+      anim.cancel();
+    });
+  }
+};
+
 function Scene(main, settings) {
   DisplayContainer.call(this);
   this.main = main;
@@ -2619,18 +2732,27 @@ function MainMenuScene() {
 
   this.time = 0;
   this.period = 2;
+  this.mailTimeMin = 0.5;
+  this.mailTimeMax = 1.5;
+  this.mailTime = Random.range(this.mailTimeMin, this.mailTimeMax);
+  this.mails = [];
 
-  // bg
-  this.addChild(new DisplayRect({
+  this.scrollingBg = new DisplayRect({
     w: SETTINGS.width,
     h: SETTINGS.height,
-    color: '#777777'
-  }));
+    color: Resources.loadedPatterns.hallwayTile,
+    fillScaleX: 5,
+    fillScaleY: 5
+  });
+  this.addChild(this.scrollingBg);
+
+  this.mailLayer = new DisplayContainer();
+  this.addChild(this.mailLayer);
 
   this.robot = new DisplayImg({
     img: Resources.loadedImgs.robot,
-    x: SETTINGS.width / 2,
-    y: 150,
+    x: 170,
+    y: SETTINGS.height / 2,
     w: 148,
     h: 154,
     anchorX: 74,
@@ -2641,8 +2763,8 @@ function MainMenuScene() {
   var mainTitle = new DisplayText({
     text: 'Employee Not Found',
     font: '32px Arial',
-    x: SETTINGS.width / 2,
-    y: 50,
+    x: 420,
+    y: 100,
     align: 'center',
     baseline: 'middle',
     color: 'white'
@@ -2650,10 +2772,21 @@ function MainMenuScene() {
   this.addChild(mainTitle);
 
   var tutorialKeyCon = new DisplayContainer({
-    x: SETTINGS.width / 2,
-    y: 270
+    x: 420,
+    y: 190
   });
   this.addChild(tutorialKeyCon);
+
+  var tutorialText = new DisplayText({
+    text: 'Controls:',
+    font: '24px Arial',
+    x: 0,
+    y: -40,
+    align: 'center',
+    baseline: 'bottom',
+    color: 'white'
+  });
+  tutorialKeyCon.addChild(tutorialText);
 
   var tutorialKeys = this.tutorialKeys = [
     new TutorialKey(0, 0, 'W', 0, this.main.animManager),
@@ -2666,6 +2799,17 @@ function MainMenuScene() {
     tutorialKeyCon.addChild(key.displayItem);
     key.start();
   });
+
+  var startText = new DisplayText({
+    text: 'Press any of these keys to start',
+    font: '18px Arial',
+    x: 0,
+    y: 70,
+    align: 'center',
+    baseline: 'top',
+    color: 'white'
+  });
+  tutorialKeyCon.addChild(startText);
 
   var keySets = [
     ['W', 'A', 'S', 'D'],
@@ -2720,99 +2864,35 @@ MainMenuScene.prototype = extendPrototype(Scene.prototype, {
     
     this.robot.scaleX = 1 + Math.cos(ratio * Math.PI * 2) * 0.05;
     this.robot.scaleY = 1 + Math.sin(ratio * Math.PI * 2) * 0.05;
+    this.scrollingBg.fillOffsetX -= 200 * dts;
+    this.mailLayer.x -= 200 * dts;
+
+    var i, mail;
+    for (i = 0; i < this.mails.length; i += 1) {
+      mail = this.mails[i];
+      if (mail.x + this.mailLayer.x < -200) {
+        this.mailLayer.removeChild(mail);
+        this.mails.splice(i, 1);
+        i -= 1;
+      }
+    }
+
+    this.mailTime -= dts;
+    if (this.mailTime <= 0) {
+      mail = new Mail({
+        x: -this.mailLayer.x + this.robot.x,
+        y: this.robot.y,
+        scaleX: 4,
+        scaleY: 4,
+        angle: Random.range(0, Math.PI * 2)
+      });
+      this.mails.push(mail);
+      this.mailLayer.addChild(mail);
+
+      this.mailTime = Random.range(this.mailTimeMin, this.mailTimeMax);
+    }
   }
 });
-
-function TutorialKey(x, y, key, delay, animManager) {
-  var container = new DisplayContainer({
-    x: x,
-    y: y
-  });
-  this.displayItem = container;
-  this.animEnabled = false;
-  this.delay = delay || 0;
-  this.animManager = animManager;
-
-  var keySide = new DisplayRect({
-    x: -20,
-    y: -5,
-    w: 40,
-    h: 25,
-    color: '#cccccc',
-    rounded: 5
-  });
-  container.addChild(keySide);
-  this.keySide = keySide;
-
-  var keyTop = new DisplayContainer({
-    x: 0,
-    y: 5
-  });
-  this.keyTop = keyTop;
-  container.addChild(keyTop);
-
-  var keyTopRect = new DisplayRect({
-    x: -20,
-    y: -40,
-    w: 40,
-    h: 40,
-    color: '#ffffff',
-    rounded: 5,
-  });
-  keyTop.addChild(keyTopRect);
-  
-  var keyTopKey = new DisplayText({
-    x: 0,
-    y: -20,
-    text: key,
-    font: '20px Arial',
-    color: 'black',
-    align: 'center',
-    baseline: 'middle'
-  });
-  keyTop.addChild(keyTopKey);
-  this.keyTopKey = keyTopKey;
-
-  this.anims = [];
-}
-
-TutorialKey.prototype = {
-  start: function () {
-    this.animEnabled = true;
-    setTimeout(this.startAnim.bind(this), this.delay * 1000);
-  },
-  startAnim: function () {
-    if (!this.animEnabled) { return false; }
-    var anim1, anim2;
-    anim1 = new Anim({
-      object: this.keyTop,
-      property: 'y',
-      from: 5,
-      to: 15,
-      duration: 0.5,
-      timeFunction: Anim.easingFunctions.easeInCubic,
-      onEnd: function () {
-        this.animManager.add(anim2);
-      }.bind(this)
-    });
-    anim2 = new Anim({
-      object: this.keyTop,
-      property: 'y',
-      from: 15,
-      to: 5,
-      duration: 0.5,
-      timeFunction: Anim.easingFunctions.easeInCubic,
-      onEnd: this.startAnim.bind(this)
-    });
-    this.animManager.add(anim1);
-  },
-  stop: function () {
-    this.animEnabled = false;
-    this.anims.forEach(function (anim) {
-      anim.cancel();
-    });
-  }
-};
 
 function PreloadScene() {
   Scene.apply(this, arguments);

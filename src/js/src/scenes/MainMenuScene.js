@@ -3,18 +3,27 @@ function MainMenuScene() {
 
   this.time = 0;
   this.period = 2;
+  this.mailTimeMin = 0.5;
+  this.mailTimeMax = 1.5;
+  this.mailTime = Random.range(this.mailTimeMin, this.mailTimeMax);
+  this.mails = [];
 
-  // bg
-  this.addChild(new DisplayRect({
+  this.scrollingBg = new DisplayRect({
     w: SETTINGS.width,
     h: SETTINGS.height,
-    color: '#777777'
-  }));
+    color: Resources.loadedPatterns.hallwayTile,
+    fillScaleX: 5,
+    fillScaleY: 5
+  });
+  this.addChild(this.scrollingBg);
+
+  this.mailLayer = new DisplayContainer();
+  this.addChild(this.mailLayer);
 
   this.robot = new DisplayImg({
     img: Resources.loadedImgs.robot,
-    x: SETTINGS.width / 2,
-    y: 150,
+    x: 170,
+    y: SETTINGS.height / 2,
     w: 148,
     h: 154,
     anchorX: 74,
@@ -25,8 +34,8 @@ function MainMenuScene() {
   var mainTitle = new DisplayText({
     text: 'Employee Not Found',
     font: '32px Arial',
-    x: SETTINGS.width / 2,
-    y: 50,
+    x: 420,
+    y: 100,
     align: 'center',
     baseline: 'middle',
     color: 'white'
@@ -34,10 +43,21 @@ function MainMenuScene() {
   this.addChild(mainTitle);
 
   var tutorialKeyCon = new DisplayContainer({
-    x: SETTINGS.width / 2,
-    y: 270
+    x: 420,
+    y: 190
   });
   this.addChild(tutorialKeyCon);
+
+  var tutorialText = new DisplayText({
+    text: 'Controls:',
+    font: '24px Arial',
+    x: 0,
+    y: -40,
+    align: 'center',
+    baseline: 'bottom',
+    color: 'white'
+  });
+  tutorialKeyCon.addChild(tutorialText);
 
   var tutorialKeys = this.tutorialKeys = [
     new TutorialKey(0, 0, 'W', 0, this.main.animManager),
@@ -50,6 +70,17 @@ function MainMenuScene() {
     tutorialKeyCon.addChild(key.displayItem);
     key.start();
   });
+
+  var startText = new DisplayText({
+    text: 'Press any of these keys to start',
+    font: '18px Arial',
+    x: 0,
+    y: 70,
+    align: 'center',
+    baseline: 'top',
+    color: 'white'
+  });
+  tutorialKeyCon.addChild(startText);
 
   var keySets = [
     ['W', 'A', 'S', 'D'],
@@ -104,96 +135,32 @@ MainMenuScene.prototype = extendPrototype(Scene.prototype, {
     
     this.robot.scaleX = 1 + Math.cos(ratio * Math.PI * 2) * 0.05;
     this.robot.scaleY = 1 + Math.sin(ratio * Math.PI * 2) * 0.05;
+    this.scrollingBg.fillOffsetX -= 200 * dts;
+    this.mailLayer.x -= 200 * dts;
+
+    var i, mail;
+    for (i = 0; i < this.mails.length; i += 1) {
+      mail = this.mails[i];
+      if (mail.x + this.mailLayer.x < -200) {
+        this.mailLayer.removeChild(mail);
+        this.mails.splice(i, 1);
+        i -= 1;
+      }
+    }
+
+    this.mailTime -= dts;
+    if (this.mailTime <= 0) {
+      mail = new Mail({
+        x: -this.mailLayer.x + this.robot.x,
+        y: this.robot.y,
+        scaleX: 4,
+        scaleY: 4,
+        angle: Random.range(0, Math.PI * 2)
+      });
+      this.mails.push(mail);
+      this.mailLayer.addChild(mail);
+
+      this.mailTime = Random.range(this.mailTimeMin, this.mailTimeMax);
+    }
   }
 });
-
-function TutorialKey(x, y, key, delay, animManager) {
-  var container = new DisplayContainer({
-    x: x,
-    y: y
-  });
-  this.displayItem = container;
-  this.animEnabled = false;
-  this.delay = delay || 0;
-  this.animManager = animManager;
-
-  var keySide = new DisplayRect({
-    x: -20,
-    y: -5,
-    w: 40,
-    h: 25,
-    color: '#cccccc',
-    rounded: 5
-  });
-  container.addChild(keySide);
-  this.keySide = keySide;
-
-  var keyTop = new DisplayContainer({
-    x: 0,
-    y: 5
-  });
-  this.keyTop = keyTop;
-  container.addChild(keyTop);
-
-  var keyTopRect = new DisplayRect({
-    x: -20,
-    y: -40,
-    w: 40,
-    h: 40,
-    color: '#ffffff',
-    rounded: 5,
-  });
-  keyTop.addChild(keyTopRect);
-  
-  var keyTopKey = new DisplayText({
-    x: 0,
-    y: -20,
-    text: key,
-    font: '20px Arial',
-    color: 'black',
-    align: 'center',
-    baseline: 'middle'
-  });
-  keyTop.addChild(keyTopKey);
-  this.keyTopKey = keyTopKey;
-
-  this.anims = [];
-}
-
-TutorialKey.prototype = {
-  start: function () {
-    this.animEnabled = true;
-    setTimeout(this.startAnim.bind(this), this.delay * 1000);
-  },
-  startAnim: function () {
-    if (!this.animEnabled) { return false; }
-    var anim1, anim2;
-    anim1 = new Anim({
-      object: this.keyTop,
-      property: 'y',
-      from: 5,
-      to: 15,
-      duration: 0.5,
-      timeFunction: Anim.easingFunctions.easeInCubic,
-      onEnd: function () {
-        this.animManager.add(anim2);
-      }.bind(this)
-    });
-    anim2 = new Anim({
-      object: this.keyTop,
-      property: 'y',
-      from: 15,
-      to: 5,
-      duration: 0.5,
-      timeFunction: Anim.easingFunctions.easeInCubic,
-      onEnd: this.startAnim.bind(this)
-    });
-    this.animManager.add(anim1);
-  },
-  stop: function () {
-    this.animEnabled = false;
-    this.anims.forEach(function (anim) {
-      anim.cancel();
-    });
-  }
-};

@@ -586,14 +586,14 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     }
 
     // debug placeable area
-    var boundRect = new DisplayRect({
-      x: bounds.left,
-      y: bounds.top,
-      w: bounds.right - bounds.left,
-      h: bounds.bottom - bounds.top,
-      color: '#007700'
-    });
-    this.addChild(boundRect);
+    // var boundRect = new DisplayRect({
+    //   x: bounds.left,
+    //   y: bounds.top,
+    //   w: bounds.right - bounds.left,
+    //   h: bounds.bottom - bounds.top,
+    //   color: '#007700'
+    // });
+    // this.addChild(boundRect);
 
     if (room.type === World.roomTypes.officeOpen) {
       collisionDesksPair = this.generateOpenOffice(bounds);
