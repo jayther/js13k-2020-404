@@ -821,7 +821,7 @@ Desk.prototype = {
       from: 1,
       to: 0.8,
       duration: 0.5,
-      timeFunction: Anim.easingFunctions.easeInOutCubic,
+      timeFunction: Anim.easingFunctions.easeInCubic,
       onStep: function (adjusted) {
         this.highlight.setScale(adjusted);
       }.bind(this),
@@ -836,7 +836,7 @@ Desk.prototype = {
       from: 0.8,
       to: 1,
       duration: 0.5,
-      timeFunction: Anim.easingFunctions.easeInOutCubic,
+      timeFunction: Anim.easingFunctions.easeOutCubic,
       onStep: function (adjusted) {
         this.highlight.setScale(adjusted);
       }.bind(this),
