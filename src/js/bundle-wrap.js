@@ -312,18 +312,9 @@ function Anim(settings) {
 }
 Anim.easingFunctions = {
   linear: function (t) { return t; },
-  easeInQuad: function (t) { return t*t; },
-  easeOutQuad: function (t) { return t*(2-t); },
-  easeInOutQuad: function (t) { return t<0.5 ? 2*t*t : -1+(4-2*t)*t; },
   easeInCubic: function (t) { return t*t*t; },
   easeOutCubic: function (t) { return (--t)*t*t+1; },
-  easeInOutCubic: function (t) { return t<0.5 ? 4*t*t*t : (t-1)*(2*t-2)*(2*t-2)+1; },
-  easeInQuart: function (t) { return t*t*t*t; },
-  easeOutQuart: function (t) { return 1-(--t)*t*t*t; },
-  easeInOutQuart: function (t) { return t<0.5 ? 8*t*t*t*t : 1-8*(--t)*t*t*t; },
-  easeInQuint: function (t) { return t*t*t*t*t; },
-  easeOutQuint: function (t) { return 1+(--t)*t*t*t*t; },
-  easeInOutQuint: function (t) { return t<0.5 ? 16*t*t*t*t*t : 1+16*(--t)*t*t*t*t; }
+  easeInOutCubic: function (t) { return t<0.5 ? 4*t*t*t : (t-1)*(2*t-2)*(2*t-2)+1; }
 };
 Anim.prototype = {
   start: function (startTime) {
@@ -862,7 +853,6 @@ Desk.prototype = {
     this.needsMail = false;
     
     this.displayItems.forEach(function (rect) {
-      //rect.color = 'red'; // debug 
       if (this.world === null) {
         this.world = rect.parent;
       }
@@ -958,7 +948,6 @@ World.relativePos = [
 ];
 World.roomTypes = {
   mailRoom: 1,
-  lobby: 2,
   officeBullpen: 3,
   officePrivate: 4,
   officeOpen: 5
@@ -966,8 +955,6 @@ World.roomTypes = {
 World.furnitureTypes = {
   desk: 1,
   doubleDesk: 2,
-  chair: 3,
-  invisible: 4,
   cubicleWall: 5
 };
 World.sides = {
@@ -1006,8 +993,6 @@ World.bullpenDesk = {
   chairSize: 20,
   type: World.furnitureTypes.desk
 };
-
-World.mailAabbPadding = 5;
 
 World.prototype = extendPrototype(DisplayContainer.prototype, {
   generate: function (width, height) {
@@ -1423,13 +1408,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       if (a < 100) {
         roomTypePool.push(World.roomTypes.officePrivate);
       }
-      if (a >= 100 && (this.lobbies.length === 0 || Math.random() < 0.1)) { // lesser chance for lobby
-        roomTypePool.push(World.roomTypes.lobby);
-      }
       room.type = Random.pick(roomTypePool);
-      if (room.type === World.roomTypes.lobby) {
-        this.lobbies.push(room);
-      }
       this.generateRoomLayout(room);
     }
   },
@@ -1526,8 +1505,6 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       collisionDesksPair = this.generatePrivateOffice(bounds, room);
     } else if (room.type === World.roomTypes.officeBullpen) {
       collisionDesksPair = this.generateBullpenOffice(bounds, room);
-    } else if (room.type === World.roomTypes.lobby) {
-      collisionDesksPair = this.generateLobby(bounds, room);
     }
 
     if (collisionDesksPair) {
@@ -1907,17 +1884,6 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
 
     return [collisionAabbs, furniture];
   },
-  generateLobby: function (bounds, room) {
-    var facing = this.determinePrevailingFacing(room);
-    
-    // TODO lobby desk(s)
-
-    // TODO chairs
-
-    var collisionAabbs = [], furniture = [];
-
-    return [collisionAabbs, furniture];
-  },
   determinePrevailingFacing: function (room) {
     var facing = 0, i, f, pool = [];
 
@@ -2099,14 +2065,6 @@ function Player(scene, settings) {
   this.collideWithWalls = true;
   this.collideWithFurniture = true;
   this.moveDirection = 0;
-  // var rect = this.rect = new DisplayRect({
-  //   x: -5,
-  //   y: -5,
-  //   w: 10,
-  //   h: 10,
-  //   color: 'blue'
-  // });
-  // this.addChild(rect);
 }
 Player.prototype = extendPrototype(DisplayContainer.prototype, {
   addDirection: function (direction) {

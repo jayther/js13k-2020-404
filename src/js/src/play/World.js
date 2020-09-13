@@ -41,7 +41,6 @@ World.relativePos = [
 ];
 World.roomTypes = {
   mailRoom: 1,
-  lobby: 2,
   officeBullpen: 3,
   officePrivate: 4,
   officeOpen: 5
@@ -49,8 +48,6 @@ World.roomTypes = {
 World.furnitureTypes = {
   desk: 1,
   doubleDesk: 2,
-  chair: 3,
-  invisible: 4,
   cubicleWall: 5
 };
 World.sides = {
@@ -89,8 +86,6 @@ World.bullpenDesk = {
   chairSize: 20,
   type: World.furnitureTypes.desk
 };
-
-World.mailAabbPadding = 5;
 
 World.prototype = extendPrototype(DisplayContainer.prototype, {
   generate: function (width, height) {
@@ -506,13 +501,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       if (a < 100) {
         roomTypePool.push(World.roomTypes.officePrivate);
       }
-      if (a >= 100 && (this.lobbies.length === 0 || Math.random() < 0.1)) { // lesser chance for lobby
-        roomTypePool.push(World.roomTypes.lobby);
-      }
       room.type = Random.pick(roomTypePool);
-      if (room.type === World.roomTypes.lobby) {
-        this.lobbies.push(room);
-      }
       this.generateRoomLayout(room);
     }
   },
@@ -609,8 +598,6 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       collisionDesksPair = this.generatePrivateOffice(bounds, room);
     } else if (room.type === World.roomTypes.officeBullpen) {
       collisionDesksPair = this.generateBullpenOffice(bounds, room);
-    } else if (room.type === World.roomTypes.lobby) {
-      collisionDesksPair = this.generateLobby(bounds, room);
     }
 
     if (collisionDesksPair) {
@@ -987,17 +974,6 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
     //     color: 'white'
     //   }));
     // }, this);
-
-    return [collisionAabbs, furniture];
-  },
-  generateLobby: function (bounds, room) {
-    var facing = this.determinePrevailingFacing(room);
-    
-    // TODO lobby desk(s)
-
-    // TODO chairs
-
-    var collisionAabbs = [], furniture = [];
 
     return [collisionAabbs, furniture];
   },

@@ -121,7 +121,6 @@ Desk.prototype = {
     this.needsMail = false;
     
     this.displayItems.forEach(function (rect) {
-      //rect.color = 'red'; // debug 
       if (this.world === null) {
         this.world = rect.parent;
       }
