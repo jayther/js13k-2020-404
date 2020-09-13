@@ -303,6 +303,7 @@ function Anim(settings) {
     to: 1,
     duration: 1,
     timeFunction: Anim.easingFunctions.linear,
+    onStep: null,
     onEnd: null
   }, settings || {});
   this.startTime = -1;
@@ -330,14 +331,19 @@ Anim.prototype = {
     this.endTime = startTime + this.settings.duration;
   },
   step: function (time) {
+    if (!((this.settings.object && this.settings.property) || this.settings.onStep)) { return; }
+
+    var timeRatio = (time - this.startTime) / this.settings.duration;
+    if (timeRatio > 1) {
+      timeRatio = 1;
+    }
+    var ratio = this.settings.timeFunction(timeRatio);
+    var adjusted = this.settings.from + (this.settings.to - this.settings.from) * ratio;
     if (this.settings.object && this.settings.property) {
-      var timeRatio = (time - this.startTime) / this.settings.duration;
-      if (timeRatio > 1) {
-        timeRatio = 1;
-      }
-      var ratio = this.settings.timeFunction(timeRatio);
-      var adjusted = this.settings.from + (this.settings.to - this.settings.from) * ratio;
       this.settings.object[this.settings.property] = adjusted;
+    }
+    if (this.settings.onStep) {
+      this.settings.onStep(adjusted);
     }
   },
   cancel: function () {
@@ -405,6 +411,10 @@ function DisplayItem(options) {
   this.anchorY = opts.anchorY;
 }
 DisplayItem.prototype = {
+  setScale: function (scale) {
+    this.scaleX = scale;
+    this.scaleY = scale;
+  },
   _render: function (context) {
     if (this.visible && this.alpha >= 0.01) {
       context.save();
@@ -742,7 +752,19 @@ function Desk(type, x, y, w, h, chairSize, room) {
     (w + chairSize / 2) / 2 + Desk.mailAabbPadding,
     (h + chairSize / 2) / 2 + Desk.mailAabbPadding
   );
+  this.highlight = new DisplayRect({
+    x: this.mailAabb.x,
+    y: this.mailAabb.y,
+    w: this.mailAabb.hw * 2,
+    h: this.mailAabb.hh * 2,
+    visible: false,
+    color: '#00cc00',
+    alpha: 0.5,
+    anchorX: this.mailAabb.hw,
+    anchorY: this.mailAabb.hh
+  });
   this.displayItems = [
+    this.highlight,
     new DisplayRect({
       x: x - w / 2,
       y: y - h / 2,
@@ -766,6 +788,8 @@ function Desk(type, x, y, w, h, chairSize, room) {
   this.deliveredCallback = null;
   this.redirectDeskCallback = null;
   this.prematureDeliveredCallback = null;
+  this.animEnabled = false;
+  this.anim = null;
 }
 Desk.poolId = 0;
 Desk.mailAabbPadding = 5;
@@ -781,15 +805,69 @@ Desk.prototype = {
     });
     this.mailAabb.rotateAroundPoint(point, angle);
   },
+  setHighlight: function (h) {
+    this.highlight.visible = h;
+    if (h) {
+      this.startHighlightAnim();
+    } else {
+      this.stopHighlightAnim();
+    }
+  },
+  startHighlightAnim: function () {
+    if (this.anim) {
+      this.anim.cancel();
+    }
+    this.animEnabled = true;
+    var anim1, anim2;
+    anim1 = new Anim({
+      from: 1,
+      to: 0.8,
+      duration: 0.5,
+      timeFunction: Anim.easingFunctions.easeInOutCubic,
+      onStep: function (adjusted) {
+        this.highlight.setScale(adjusted);
+      }.bind(this),
+      onEnd: function () {
+        if (this.animEnabled) {
+          AnimManager.singleton.add(anim2);
+          this.anim = anim2;
+        }
+      }.bind(this)
+    });
+    anim2 = new Anim({
+      from: 0.8,
+      to: 1,
+      duration: 0.5,
+      timeFunction: Anim.easingFunctions.easeInOutCubic,
+      onStep: function (adjusted) {
+        this.highlight.setScale(adjusted);
+      }.bind(this),
+      onEnd: function () {
+        if (this.animEnabled) {
+          AnimManager.singleton.add(anim1);
+          this.anim = anim1;
+        }
+      }.bind(this)
+    });
+    AnimManager.singleton.add(anim1);
+  },
+  stopHighlightAnim: function () {
+    this.animEnabled = false;
+    if (this.anim) {
+      this.anim.cancel();
+      this.anim = null;
+    }
+  },
   mailDelivered: function (player) {
     this.needsMail = false;
-    // debug
+    
     this.displayItems.forEach(function (rect) {
-      rect.color = 'red';
+      //rect.color = 'red'; // debug 
       if (this.world === null) {
         this.world = rect.parent;
       }
     }, this);
+    this.setHighlight(false);
     if (this.redirectTo === -1) {
       var envelope = new Mail({
         x: player.x,
@@ -2648,13 +2726,13 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
       redirectTo.deliveredCallback = this.deskDelivered.bind(this);
     }
 
-    mailableDesks.forEach(initMailableDesk);
-    redirectedFromDesks.forEach(initMailableDesk);
-    redirectedToDesks.forEach(initMailableDesk);
-
     mailableDesks.forEach(function (desk) {
       desk.deliveredCallback = this.deskDelivered.bind(this);
     }, this);
+
+    mailableDesks.forEach(initMailableDesk);
+    redirectedFromDesks.forEach(initMailableDesk);
+    redirectedToDesks.forEach(initMailableDesk);
 
     this.mailableRooms = mailableRooms;
     this.mailableDesks = mailableDesks;
@@ -2664,21 +2742,21 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
     this.mailLeftText.text = 'Mail left: ' + this.allMailableDesks.length;
 
     // debug
-    this.mailableDesks.forEach(function (desk) {
-      desk.displayItems.forEach(function (rect) {
-        rect.color = 'white';
-      });
-    });
-    this.redirectedFromDesks.forEach(function (desk) {
-      desk.displayItems.forEach(function (rect) {
-        rect.color = 'blue';
-      });
-    });
-    this.redirectedToDesks.forEach(function (desk) {
-      desk.displayItems.forEach(function (rect) {
-        rect.color = 'gray';
-      });
-    });
+    // this.mailableDesks.forEach(function (desk) {
+    //   desk.displayItems.forEach(function (rect) {
+    //     rect.color = 'white';
+    //   });
+    // });
+    // this.redirectedFromDesks.forEach(function (desk) {
+    //   desk.displayItems.forEach(function (rect) {
+    //     rect.color = 'blue';
+    //   });
+    // });
+    // this.redirectedToDesks.forEach(function (desk) {
+    //   desk.displayItems.forEach(function (rect) {
+    //     rect.color = 'gray';
+    //   });
+    // });
   },
   deskDelivered: function (desk) {
     console.log('delivered to', desk.id);
@@ -2704,6 +2782,7 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
     if (index !== -1) { return; }
 
     toDesk.room.needsMail = true;
+    toDesk.setHighlight(true);
     this.mailableRooms.push(toDesk.room);
     var pointer = createPointer('blue');
     this.roomPointerMap[toDesk.room.id] = pointer;
@@ -2729,6 +2808,7 @@ function reduceRoomsToDesks(accumulator, room) {
 
 function initMailableDesk(desk) {
   desk.needsMail = true;
+  desk.setHighlight(true);
 }
 
 function createPointer(color) {

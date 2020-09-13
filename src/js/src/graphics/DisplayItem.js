@@ -22,6 +22,10 @@ function DisplayItem(options) {
   this.anchorY = opts.anchorY;
 }
 DisplayItem.prototype = {
+  setScale: function (scale) {
+    this.scaleX = scale;
+    this.scaleY = scale;
+  },
   _render: function (context) {
     if (this.visible && this.alpha >= 0.01) {
       context.save();

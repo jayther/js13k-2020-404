@@ -6,6 +6,7 @@ function Anim(settings) {
     to: 1,
     duration: 1,
     timeFunction: Anim.easingFunctions.linear,
+    onStep: null,
     onEnd: null
   }, settings || {});
   this.startTime = -1;
@@ -33,14 +34,19 @@ Anim.prototype = {
     this.endTime = startTime + this.settings.duration;
   },
   step: function (time) {
+    if (!((this.settings.object && this.settings.property) || this.settings.onStep)) { return; }
+
+    var timeRatio = (time - this.startTime) / this.settings.duration;
+    if (timeRatio > 1) {
+      timeRatio = 1;
+    }
+    var ratio = this.settings.timeFunction(timeRatio);
+    var adjusted = this.settings.from + (this.settings.to - this.settings.from) * ratio;
     if (this.settings.object && this.settings.property) {
-      var timeRatio = (time - this.startTime) / this.settings.duration;
-      if (timeRatio > 1) {
-        timeRatio = 1;
-      }
-      var ratio = this.settings.timeFunction(timeRatio);
-      var adjusted = this.settings.from + (this.settings.to - this.settings.from) * ratio;
       this.settings.object[this.settings.property] = adjusted;
+    }
+    if (this.settings.onStep) {
+      this.settings.onStep(adjusted);
     }
   },
   cancel: function () {

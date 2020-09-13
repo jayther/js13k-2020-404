@@ -241,13 +241,13 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
       redirectTo.deliveredCallback = this.deskDelivered.bind(this);
     }
 
-    mailableDesks.forEach(initMailableDesk);
-    redirectedFromDesks.forEach(initMailableDesk);
-    redirectedToDesks.forEach(initMailableDesk);
-
     mailableDesks.forEach(function (desk) {
       desk.deliveredCallback = this.deskDelivered.bind(this);
     }, this);
+
+    mailableDesks.forEach(initMailableDesk);
+    redirectedFromDesks.forEach(initMailableDesk);
+    redirectedToDesks.forEach(initMailableDesk);
 
     this.mailableRooms = mailableRooms;
     this.mailableDesks = mailableDesks;
@@ -257,21 +257,21 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
     this.mailLeftText.text = 'Mail left: ' + this.allMailableDesks.length;
 
     // debug
-    this.mailableDesks.forEach(function (desk) {
-      desk.displayItems.forEach(function (rect) {
-        rect.color = 'white';
-      });
-    });
-    this.redirectedFromDesks.forEach(function (desk) {
-      desk.displayItems.forEach(function (rect) {
-        rect.color = 'blue';
-      });
-    });
-    this.redirectedToDesks.forEach(function (desk) {
-      desk.displayItems.forEach(function (rect) {
-        rect.color = 'gray';
-      });
-    });
+    // this.mailableDesks.forEach(function (desk) {
+    //   desk.displayItems.forEach(function (rect) {
+    //     rect.color = 'white';
+    //   });
+    // });
+    // this.redirectedFromDesks.forEach(function (desk) {
+    //   desk.displayItems.forEach(function (rect) {
+    //     rect.color = 'blue';
+    //   });
+    // });
+    // this.redirectedToDesks.forEach(function (desk) {
+    //   desk.displayItems.forEach(function (rect) {
+    //     rect.color = 'gray';
+    //   });
+    // });
   },
   deskDelivered: function (desk) {
     console.log('delivered to', desk.id);
@@ -297,6 +297,7 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
     if (index !== -1) { return; }
 
     toDesk.room.needsMail = true;
+    toDesk.setHighlight(true);
     this.mailableRooms.push(toDesk.room);
     var pointer = createPointer('blue');
     this.roomPointerMap[toDesk.room.id] = pointer;
@@ -322,6 +323,7 @@ function reduceRoomsToDesks(accumulator, room) {
 
 function initMailableDesk(desk) {
   desk.needsMail = true;
+  desk.setHighlight(true);
 }
 
 function createPointer(color) {
