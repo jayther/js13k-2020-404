@@ -624,21 +624,6 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         this.addChild(item);
       }, this);
     }, this);
-
-    var x = (room.left + room.right) / 2 * this.cellSize,
-      y = (room.top + room.bottom) / 2 * this.cellSize,
-      labelMap = ['Unknown', 'Mailroom', 'Lobby', 'Bullpen', 'Private', 'Open'],
-      label = labelMap[room.type];
-
-    var displayText = new DisplayText({
-      text: label,
-      x: x,
-      y: y,
-      align: 'center',
-      baseline: 'middle',
-      font: '36px Arial'
-    });
-    this.addChild(displayText);
   },
   generateOpenOffice: function (bounds, room) {
     var i;

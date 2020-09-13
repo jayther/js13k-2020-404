@@ -35,14 +35,6 @@ function Player(scene, settings) {
   this.collideWithWalls = true;
   this.collideWithFurniture = true;
   this.moveDirection = 0;
-  // var rect = this.rect = new DisplayRect({
-  //   x: -5,
-  //   y: -5,
-  //   w: 10,
-  //   h: 10,
-  //   color: 'blue'
-  // });
-  // this.addChild(rect);
 }
 Player.prototype = extendPrototype(DisplayContainer.prototype, {
   addDirection: function (direction) {
@@ -51,6 +43,10 @@ Player.prototype = extendPrototype(DisplayContainer.prototype, {
   },
   removeDirection: function (direction) {
     this.moveDirection ^= direction;
+    this.updateVel();
+  },
+  resetDirection: function () {
+    this.moveDirection = 0;
     this.updateVel();
   },
   updateVel: function () {
