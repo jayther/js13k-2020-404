@@ -1,4 +1,7 @@
 var JMath = {
+  clamp: function (v, min, max) {
+    return v < min ? min : v > max ? max : v;
+  },
   intersectRectRect: function (a, b) {
     return (
       a.left < b.right &&

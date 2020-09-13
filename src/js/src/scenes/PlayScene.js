@@ -167,17 +167,19 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
     this.updatePointers();
   },
   updatePointers: function () {
-    var i, room, roomX, roomY, angle, pointer;
+    var i, room, angle, pointer, distance, dx, dy;
     for (i = 0; i < this.mailableRooms.length; i += 1) {
       room = this.mailableRooms[i];
       if (room.needsMail) {
         pointer = this.roomPointerMap[room.id];
         if (this.player.currentRoom !== room) {
           pointer.visible = true;
-          roomX = (room.left + room.right) / 2 * this.world.cellSize;
-          roomY = (room.top + room.bottom) / 2 * this.world.cellSize;
-          angle = Math.atan2(roomY - this.player.y, roomX - this.player.x);
+          dx = room.doorToHallway.x - this.player.x;
+          dy = room.doorToHallway.y - this.player.y;
+          distance = Math.sqrt(dx * dx + dy * dy);
+          angle = Math.atan2(dy, dx);
           pointer.angle = angle;
+          pointer.setDistance(distance);
         } else {
           pointer.visible = false;
         }
@@ -323,9 +325,8 @@ function initMailableDesk(desk) {
 }
 
 function createPointer(color) {
-  var con = new DisplayContainer();
-  con.addChild(
-    new DisplayPath({
+  var con = new DisplayContainer(),
+    graphic = new DisplayPath({
       x: 150,
       y: 0,
       path: [
@@ -334,7 +335,10 @@ function createPointer(color) {
         { x: -15, y: 10 }
       ],
       color: color
-    })
-  );
+    });
+  con.addChild(graphic);
+  con.setDistance = function (d) {
+    graphic.x = 10 + ((JMath.clamp(d, 50, 400) - 50) / 350) * 140;
+  };
   return con;
 }

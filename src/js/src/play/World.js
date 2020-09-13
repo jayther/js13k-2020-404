@@ -357,7 +357,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         rectCheck.right = chunk.right;
         rectCheck.bottom = chunk.bottom;
         // determine direction
-        var found = false;
+        var found = false, doorToHallwayOffsetX = this.cellSize / 2, doorToHallwayOffsetY = this.cellSize / 2;
         // left
         rectCheck.left -= 2;
         if (JMath.intersectRectRect(rectCheck, chunkA)) {
@@ -369,6 +369,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
           );
           x2 = x;
           y2 = y + 1;
+          doorToHallwayOffsetX += this.cellSize * 2;
           doorWallFlags = World.sides.left;
         }
         // top
@@ -384,6 +385,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
             y = chunkA.bottom;
             x2 = x + 1;
             y2 = y;
+            doorToHallwayOffsetY += this.cellSize * 2;
             doorWallFlags = World.sides.top;
           }
         }
@@ -400,6 +402,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
             );
             x2 = x;
             y2 = y + 1;
+            doorToHallwayOffsetX += -this.cellSize * 2;
             doorWallFlags = World.sides.right;
           }
         }
@@ -412,10 +415,15 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
           y = chunkA.top - 1;
           x2 = x + 1;
           y2 = y;
+          doorToHallwayOffsetY += -this.cellSize * 2;
           doorWallFlags = World.sides.bottom;
         }
         this.setPos(x, y, World.cellTypes.door);
         this.setPos(x2, y2, World.cellTypes.door);
+        chunk.doorToHallway = {
+          x: (x + x2) / 2 * this.cellSize + doorToHallwayOffsetX,
+          y: (y + y2) / 2 * this.cellSize + doorToHallwayOffsetY
+        };
         chunk.connected = true;
         this.rooms.push(chunk);
         // which walls have doors
@@ -857,9 +865,8 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
           // full columns
           maxCubicleColumns = maxColumnsPerRow;
         }
-        // TODO cubicle walls
-        // |_|_|_|_|_|_|_|_|
-        // | | | | | | | | |
+        
+        // long middle wall
         aabb = new AABB(
           sectionX + (maxCubicleColumns * cubicleSize / 2),
           sectionY + cubicleSize,
@@ -882,6 +889,8 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
             );
             aabb.sideOpening = sideOpening;
             cubicles.push(aabb);
+
+            // cubicle wall
             aabb = new AABB(
               cubicleX,
               cubicleY + cubicleSize / 2,
@@ -890,7 +899,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
             );
             cubicleWalls.push(aabb);
           }
-          // last wall
+          // last cubicle wall
           aabb = new AABB(
             sectionX + maxCubicleColumns * cubicleSize,
             cubicleY + cubicleSize / 2,
@@ -1061,7 +1070,9 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       aabb = null,
       halfSize = this.cellSize / 2,
       item = null,
-      passable = true;
+      passable = true,
+      fillOffsetX = 0,
+      fillOffsetY = 0;
     switch (type) {
     case World.cellTypes.outerWall: // wall
       aabb = new AABB(
@@ -1076,8 +1087,10 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       passable = true;
       break;
     case World.cellTypes.door:
-      color = '#00aa00';
+      color = Resources.loadedPatterns.hallwayTile;
       passable = true;
+      fillOffsetX = -x * this.cellSize;
+      fillOffsetY = -y * this.cellSize;
       break;
     case World.cellTypes.roomGround:
       passable = true;
@@ -1089,7 +1102,9 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         y: y * this.cellSize,
         w: this.cellSize,
         h: this.cellSize,
-        color: color 
+        color: color ,
+        fillOffsetX: fillOffsetX,
+        fillOffsetY: fillOffsetY
       });
     }
     return {

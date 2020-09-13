@@ -146,6 +146,9 @@ Random = {
 };
 
 var JMath = {
+  clamp: function (v, min, max) {
+    return v < min ? min : v > max ? max : v;
+  },
   intersectRectRect: function (a, b) {
     return (
       a.left < b.right &&
@@ -720,6 +723,7 @@ function Room(id, chunk) {
   this.fog = null;
   this.doorWallFlags = 0;
   this.needsMail = false;
+  this.doorToHallway = { x: 0, y: 0};
 }
 
 Room.prototype = {
@@ -1192,7 +1196,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         rectCheck.right = chunk.right;
         rectCheck.bottom = chunk.bottom;
         // determine direction
-        var found = false;
+        var found = false, doorToHallwayOffsetX = this.cellSize / 2, doorToHallwayOffsetY = this.cellSize / 2;
         // left
         rectCheck.left -= 2;
         if (JMath.intersectRectRect(rectCheck, chunkA)) {
@@ -1204,6 +1208,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
           );
           x2 = x;
           y2 = y + 1;
+          doorToHallwayOffsetX += this.cellSize * 2;
           doorWallFlags = World.sides.left;
         }
         // top
@@ -1219,6 +1224,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
             y = chunkA.bottom;
             x2 = x + 1;
             y2 = y;
+            doorToHallwayOffsetY += this.cellSize * 2;
             doorWallFlags = World.sides.top;
           }
         }
@@ -1235,6 +1241,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
             );
             x2 = x;
             y2 = y + 1;
+            doorToHallwayOffsetX += -this.cellSize * 2;
             doorWallFlags = World.sides.right;
           }
         }
@@ -1247,10 +1254,15 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
           y = chunkA.top - 1;
           x2 = x + 1;
           y2 = y;
+          doorToHallwayOffsetY += -this.cellSize * 2;
           doorWallFlags = World.sides.bottom;
         }
         this.setPos(x, y, World.cellTypes.door);
         this.setPos(x2, y2, World.cellTypes.door);
+        chunk.doorToHallway = {
+          x: (x + x2) / 2 * this.cellSize + doorToHallwayOffsetX,
+          y: (y + y2) / 2 * this.cellSize + doorToHallwayOffsetY
+        };
         chunk.connected = true;
         this.rooms.push(chunk);
         // which walls have doors
@@ -1692,9 +1704,8 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
           // full columns
           maxCubicleColumns = maxColumnsPerRow;
         }
-        // TODO cubicle walls
-        // |_|_|_|_|_|_|_|_|
-        // | | | | | | | | |
+        
+        // long middle wall
         aabb = new AABB(
           sectionX + (maxCubicleColumns * cubicleSize / 2),
           sectionY + cubicleSize,
@@ -1717,6 +1728,8 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
             );
             aabb.sideOpening = sideOpening;
             cubicles.push(aabb);
+
+            // cubicle wall
             aabb = new AABB(
               cubicleX,
               cubicleY + cubicleSize / 2,
@@ -1725,7 +1738,7 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
             );
             cubicleWalls.push(aabb);
           }
-          // last wall
+          // last cubicle wall
           aabb = new AABB(
             sectionX + maxCubicleColumns * cubicleSize,
             cubicleY + cubicleSize / 2,
@@ -1896,7 +1909,9 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       aabb = null,
       halfSize = this.cellSize / 2,
       item = null,
-      passable = true;
+      passable = true,
+      fillOffsetX = 0,
+      fillOffsetY = 0;
     switch (type) {
     case World.cellTypes.outerWall: // wall
       aabb = new AABB(
@@ -1911,8 +1926,10 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
       passable = true;
       break;
     case World.cellTypes.door:
-      color = '#00aa00';
+      color = Resources.loadedPatterns.hallwayTile;
       passable = true;
+      fillOffsetX = -x * this.cellSize;
+      fillOffsetY = -y * this.cellSize;
       break;
     case World.cellTypes.roomGround:
       passable = true;
@@ -1924,7 +1941,9 @@ World.prototype = extendPrototype(DisplayContainer.prototype, {
         y: y * this.cellSize,
         w: this.cellSize,
         h: this.cellSize,
-        color: color 
+        color: color ,
+        fillOffsetX: fillOffsetX,
+        fillOffsetY: fillOffsetY
       });
     }
     return {
@@ -2555,17 +2574,19 @@ PlayScene.prototype = extendPrototype(Scene.prototype, {
     this.updatePointers();
   },
   updatePointers: function () {
-    var i, room, roomX, roomY, angle, pointer;
+    var i, room, angle, pointer, distance, dx, dy;
     for (i = 0; i < this.mailableRooms.length; i += 1) {
       room = this.mailableRooms[i];
       if (room.needsMail) {
         pointer = this.roomPointerMap[room.id];
         if (this.player.currentRoom !== room) {
           pointer.visible = true;
-          roomX = (room.left + room.right) / 2 * this.world.cellSize;
-          roomY = (room.top + room.bottom) / 2 * this.world.cellSize;
-          angle = Math.atan2(roomY - this.player.y, roomX - this.player.x);
+          dx = room.doorToHallway.x - this.player.x;
+          dy = room.doorToHallway.y - this.player.y;
+          distance = Math.sqrt(dx * dx + dy * dy);
+          angle = Math.atan2(dy, dx);
           pointer.angle = angle;
+          pointer.setDistance(distance);
         } else {
           pointer.visible = false;
         }
@@ -2711,9 +2732,8 @@ function initMailableDesk(desk) {
 }
 
 function createPointer(color) {
-  var con = new DisplayContainer();
-  con.addChild(
-    new DisplayPath({
+  var con = new DisplayContainer(),
+    graphic = new DisplayPath({
       x: 150,
       y: 0,
       path: [
@@ -2722,8 +2742,11 @@ function createPointer(color) {
         { x: -15, y: 10 }
       ],
       color: color
-    })
-  );
+    });
+  con.addChild(graphic);
+  con.setDistance = function (d) {
+    graphic.x = 10 + ((JMath.clamp(d, 50, 400) - 50) / 350) * 140;
+  };
   return con;
 }
 

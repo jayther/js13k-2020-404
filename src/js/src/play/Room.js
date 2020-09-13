@@ -12,6 +12,7 @@ function Room(id, chunk) {
   this.fog = null;
   this.doorWallFlags = 0;
   this.needsMail = false;
+  this.doorToHallway = { x: 0, y: 0};
 }
 
 Room.prototype = {
